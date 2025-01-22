@@ -439,8 +439,11 @@ class DNACipher():
         #### Extracting the features...
         # Checked how this worked for truncated alt from INDEL, and works fine.
         # BUT have not checked if the
+        torch.cuda.empty_cache()
         ref_features = self.get_seq_features(ref_seq)
+        torch.cuda.empty_cache()
         alt_features = self.get_seq_features(alt_seq)
+        torch.cuda.empty_cache()
 
         if full_embeds: # For predicting across the sequence region
             return ref_features, alt_features, ref_seq, alt_seq
