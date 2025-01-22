@@ -5,11 +5,15 @@ DNACipher
 
 **DNACipher is a DNA sequence deep learning model that also includes cell type and assay information on the model input.**
 
-Install
+Tutorial
 -------
-Please replace 'mamba' with 'conda' if not installed, mamba much faster however (recommend installing mamba!).
+Please see the google collab tutorial here:
 
-To install from source:
+https://colab.research.google.com/gist/BradBalderson/c4389baa0d789314259b8479cfd35747/dnacipher_inference_local.ipynb
+
+To install and run locally, please see the tutorial here:
+
+https://github.com/BradBalderson/DNACipher/blob/main/tutorials/DNACipher_inference_local.ipynb
 
     
 
