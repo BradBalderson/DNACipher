@@ -671,7 +671,7 @@ class DNACipher():
         if not return_all:
             return diff, experiments_output
         else:
-            return diff, experiments_output, ref_output.cpu().numpy(), alt_output.cpu().numpy(), ref_seq, alt_seq, ref_features.cpu().numpy(), alt_features.cpu().numpy()
+            return diff, experiments_output, ref_output.cpu().detach().numpy(), alt_output.cpu().detach().numpy(), ref_seq, alt_seq, ref_features.cpu().detach().numpy(), alt_features.cpu().detach().numpy()
 
     def infer_effects(self, chr_, pos, ref, alt, index_base=0, batch_size=900,
                       batch_axis = 1, #Refers to batch by sequence. batch_axis=1 will batch by celltype/assay, batch_axis=0 will do so by sequence embeddings.
