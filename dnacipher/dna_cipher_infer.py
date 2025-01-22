@@ -80,7 +80,7 @@ class DNACipher():
         ################################################################################################################
         # Loading the model weights, which will then use to infer the model architecture.
         self.weight_path = weight_path
-        model_weights = torch.load(self.weight_path, map_location=torch.device(self.device),
+        model_weights = torch.load(self.weight_path, map_location='cpu', #torch.device(self.device),
                                    weights_only=True)
 
         ##### Determining model parameters...
@@ -134,9 +134,10 @@ class DNACipher():
                                        n_assays, n_assay_factors,  # Assay type information
                                        n_genomic_inputs, n_genomic_factors,  # Genomic sequence information
                                        n_output_factors,  # Epigenetic information to output
-                                       n_layers, n_nodes, **config).eval().to( self.device )
+                                       n_layers, n_nodes, **config).eval() #.to( self.device )
         # Load the weights to the model
         self.model_.load_state_dict(model_weights)
+        self.model_ = self.model_.to( self.device )
 
         ################################################################################################################
                         # Also attaching the Enformer model to generate the sequence embeddings #
