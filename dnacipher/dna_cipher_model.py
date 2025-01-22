@@ -32,7 +32,7 @@ class LossCallback(Callback):
             self.val_losses.append(avg_val_loss)
 
 
-class DNACipherModel(pl.LightningModule):
+class DNACipherModel( pl.LightningModule ):
     """
     """
 
@@ -95,7 +95,8 @@ class DNACipherModel(pl.LightningModule):
                             n_token_features for each token and project down to n_token_factors (default 1280 -> 1).
                             So for a 6Kb input, will project down to 1,000 features for each position.
         """
-        super(DNACipherModel, self).__init__()
+        #super(DNACipherModel, self).__init__()
+        super().__init__()
 
         #### Defining some params which change how the network works...
         self.dropout_genome_layer = dropout_genome_layer
@@ -245,6 +246,7 @@ class DNACipherModel(pl.LightningModule):
         assay = self.assay_embedding(assay_input)
 
         # Project the token features down.
+        seqfeatures = seqfeatures.to( celltype.dtype ) #self.genome_layer.dtype )
         genome = self.genome_layer(seqfeatures)
         if self.dropout_genome_layer:  ### These are optional, since didn't implement in original version.
             genome = self.drop(genome)

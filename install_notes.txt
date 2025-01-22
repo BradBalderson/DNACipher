@@ -1,0 +1,22 @@
+# Notes on installing and testing tutorial...
+
+conda create -n dnacipher_test python=3.10
+conda activate dnacipher_test
+
+# NOTE am trying to match google collab defaults.
+mamba install jupyterlab
+pip install notebook
+mamba install pytorch::pytorch torchvision torchaudio -c pytorch
+#### See here for torch install instructions: https://pytorch.org/
+
+mamba install matplotlib
+mamba install seaborn
+mamba install pandas
+pip install pyfaidx kipoiseq
+mamba install scipy
+mamba install pytorch-lightning
+
+pip install enformer-pytorch
+
+
+

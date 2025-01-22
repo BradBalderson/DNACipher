@@ -1,1 +1,5 @@
+tutorials/data/genome.fa
+tutorials/data/genome.fa.fai
+.ipynb_checkpoints/
+dnacipher/__pycache__/
 .DS_Store
