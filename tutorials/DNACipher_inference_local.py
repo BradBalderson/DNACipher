@@ -181,7 +181,7 @@ celltype
 #### Lets say we just want to look at plus and minus strand RNA-seq
 assays = ['plus strand polyA plus RNA-seq', 'minus strand polyA plus RNA-seq'] # Choosing from dnacipher.assays
 
-strand_effects, experiments_outputted = dnacipher.infer_specific_effect(chr_, pos, ref, alt, celltype, assays,
+strand_effects = dnacipher.infer_effects(chr_, pos, ref, alt, celltype, assays,
                                               # The positions are 1-based indexing, so have to indicate this
                                               index_base=1,
                                               # Specify a different sequence midpoint than the variant position,
@@ -190,12 +190,11 @@ strand_effects, experiments_outputted = dnacipher.infer_specific_effect(chr_, po
                                              )
 
 ### Strand-specific and celltype-specific RNA-seq effect predictions, across the whole inputted locus
-for experiment, strand_effect in zip(experiments_outputted, strand_effects):
-    print(f"Predicted effect of variant in {experiment}: {strand_effect}")
+print( strand_effects )
 
 ###### You can also see the actual effects along the sequence.
 strand_effects, experiments_outputted, ref_signals, alt_signals, ref_seq, alt_seq, ref_features, alt_features = \
-                                    dnacipher.infer_specific_effect(chr_, pos, ref, alt, celltype, assays,
+                                    dnacipher.infer_effects(chr_, pos, ref, alt, celltype, assays,
                                               # The positions are 1-based indexing, so have to indicate this
                                               index_base=1, return_all=True, seq_pos=seq_pos,
                                              )

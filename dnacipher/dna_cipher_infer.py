@@ -673,7 +673,7 @@ class DNACipher():
         else:
             return diff, experiments_output, ref_output.cpu().detach().numpy(), alt_output.cpu().detach().numpy(), ref_seq, alt_seq, ref_features.cpu().detach().numpy(), alt_features.cpu().detach().numpy()
 
-    def infer_effects(self, chr_, pos, ref, alt, index_base=0, batch_size=900,
+    def infer_effects_OLD(self, chr_, pos, ref, alt, index_base=0, batch_size=900,
                       batch_axis = 1, #Refers to batch by sequence. batch_axis=1 will batch by celltype/assay, batch_axis=0 will do so by sequence embeddings.
                       seq_pos = None, # the position to centre the ref and alt sequence on!
                       full_embeds = True, # Whether to use the full embeds or not for the effect inference,
@@ -817,6 +817,208 @@ class DNACipher():
             stratified_result = pd.DataFrame(stratified_result, index=self.celltypes, columns=self.assays)
 
         return stratified_result
+
+    def infer_effects(self, chr_, pos, ref, alt, celltypes, assays,
+                      index_base=0, batch_size=None,
+                      batch_by = None, #Refers to batch by sequence. batch_axis=1 will batch by celltype/assay, batch_axis=0 will do so by sequence embeddings.
+                      seq_pos = None, # the position to centre the ref and alt sequence on!
+                      full_embeds = True, # Whether to use the full embeds or not for the effect inference,
+                                           # if false, will perform some smoothing of the embeddings, making them slightly
+                                           # smaller but lowering the resolution of the embeddings..
+                      all_combinations=True,
+                      return_all = False,
+                      verbose=False,
+                     ):
+        """ Infers effects across celltypes and assays. Using batching strategy to circumvent high memory requirements.
+
+        Parameters
+        ----------
+        chr_: str
+            Chromosome location of the genetic variant.
+        pos: int
+            Location on the chromosome of the variant.
+        ref: str
+            Reference sequence at the chromosome location.
+        alt: str
+            Alternative sequence at the chromosome location.
+        celltype: str or list<str>
+            A single cell type from within dnacipher.celltypes, or a list of such cell types.
+        assay: str or list<str>
+            A single assay from within dnacipher.assays, or a list of such assays.
+        index_base: int
+            0 or 1, specifies the index-base of the inputted variation position (pos).
+        batch_size: int
+            The number of experiments or sequence embeddings to parse at a time through the model to predict signals. Lower if run into memory errors. None means compute everything in one batch.
+        batch_by: int
+            Indicates how to batch the data when fed into the model, either by 'experiments', 'sequence', or None. If None, will automatically choose whichever is the larger axis.
+        seq_pos: int
+            Specifies the position to centre the query sequence on, must be within dnacipher.seqlen_max in order to predict
+            effect of the genetic variant. If None then will centre the query sequence on the inputted variant.
+        full_embeds: bool
+            Whether to use the full set of embeddings generated from the sequence. If False then depending on the
+            initialisation of the DNACipher model will use different methods to summarise the sequence embedding prior
+            to inference.
+        all_combinations: bool
+            True to generate predicetiosn for all combinations of inputted cell types and assays.
+            If False, then celltype and assays input must be lists of the same length,
+            and only those specific combinations will be generated.
+        return_all: bool
+            True to return the signals across the ref and alt sequences, the ref and alt sequences, and the latent
+            genome representation of the ref and alt sequences.
+        verbose: bool
+            True for detailed printing of progress.
+
+        Returns
+        --------
+        pred_effects: pd.DataFrame
+            Rows are cell types, columns are assays, values are summarised predicted effects of the variant in the particular celltype/assay combination.
+        """
+        # Checking batch_by input:
+        batch_options = ['sequence', 'experiment', None]
+        if batch_by not in batch_options:
+            raise Exception(
+                f"Unsupported input option, batch_by={batch_by}, but only these options supported: {batch_options}")
+
+        # Getting the cell type-assay inputs
+        if type(celltypes) == str:
+            celltypes = [celltypes]
+
+        if type(assays) == str:
+            assays = [assays]
+
+        missing_celltypes = [ct for ct in celltypes if ct not in self.celltypes]
+        missing_assays = [assay_ for assay_ in assays if assay_ not in self.assays]
+        if len(missing_celltypes) > 0:
+            raise Exception(f"Inputted cell types not represented in the model: {missing_celltypes}")
+        if len(missing_assays) > 0:
+            raise Exception(f"Inputted assays not represented in the model: {missing_assays}")
+
+        if not all_combinations and len(celltypes) != len(assays):
+            raise Exception("Specified not predicting all combinations of inputted cell types and assays, yet "
+                            "did not input the same number of cell types and assays to specify specific experiments."
+                            f" Number of cell types inputted, number of assays inputted: {len(celltypes), len(assays)}.")
+
+        celltype_indexes = np.array([self.celltypes.index(celltype_) for celltype_ in celltypes])
+        assay_indexes = np.array([self.assays.index(assay_) for assay_ in assays])
+
+        # Generating all pairs of the cell types and assays
+        if all_combinations:
+            experiments_to_pred = np.array(list(product(celltype_indexes, assay_indexes)), dtype=int).transpose()
+            celltype_indexes = experiments_to_pred[0, :]
+            assay_indexes = experiments_to_pred[1, :]
+
+            # And getting their names
+            experiment_names = np.array(list(product(celltypes, assays)), dtype=str).transpose()
+            celltype_names = list( experiment_names[0, :] )
+            assay_names = list( experiment_names[1, :] )
+
+        else: # Not all combinations, just the input names:
+            celltype_names = celltypes
+            assay_names = assays
+
+        # Getting the sequence embeddings input:
+        ref_features, alt_features, ref_seq, alt_seq = self.get_variant_embeds(chr_, pos, ref, alt, index_base,
+                                                                               transpose=False,
+                                                                               seq_pos=seq_pos,
+                                                                               full_embeds=full_embeds
+                                                                               )
+
+        # Creating tensor representations of these inputs:
+        torch.cuda.empty_cache()
+
+        celltype_index_input = torch.tensor(celltype_indexes, device=self.device).unsqueeze(0).expand(ref_features.size(0),
+                                                                                                -1)
+        assay_index_input = torch.tensor(assay_indexes, device=self.device).unsqueeze(0).expand(ref_features.size(0), -1)
+
+        ref_input = torch.tensor(ref_features, device=self.device, dtype=torch.float32)
+        alt_input = torch.tensor(alt_features, device=self.device, dtype=torch.float32)
+
+        # Determining number of combinations to impute:
+        n_combs = len( celltype_indexes )
+
+        # Determining the batch_axis automatically, based on whichever axis is larger!
+        # batch_by: int
+        #     0 or 1, 1 will batch by experiments, batch_axis = 0 will batch by sequence position.
+        seq_size = ref_features.size(0)
+        sizes = [seq_size, n_combs]
+        if type(batch_by) == type(None):
+            batch_axis = np.argmax( sizes )  # Choose the larger axis to batch by
+        else:  # User defined, already checked above that it is a valid input.
+            batch_axis = batch_options.index( batch_by )
+
+        if type( batch_size ) == type(None):  # Compute everything in one batch:
+            batch_size = sizes[ batch_axis ]
+
+        with torch.no_grad():
+            #### Checking to make sure the celltype,assays being repeated correctly.
+            #print(celltype_index_input[0:n_combs+10], assay_index_input[0:n_combs+10])
+            #### Will do in batches to get it to scale !
+            if batch_axis not in [0, 1]:
+                raise Exception(f"Invalid batch axis: {batch_axis}.")
+
+            total = ref_input.shape[0] if batch_axis==0 else n_combs
+            batch_size = min([batch_size, total])
+            n_batches = math.ceil( total / batch_size )
+
+            starti = 0
+            ref_batch_preds = []
+            alt_batch_preds = []
+            start_ = time.time()
+            for batchi in range(n_batches):
+                endi = min([starti+batch_size, total])
+                batchi_size = endi-starti
+
+                if batch_axis == 0: # Batching either by sequence or celltype/assay
+                    celltype_index_batchi = celltype_index_input[starti:endi]
+                    assay_index_batchi = assay_index_input[starti:endi]
+                    ref_input_batchi = ref_input[starti:endi]
+                    alt_input_batchi = alt_input[starti:endi]
+                    pred_rows, pred_cols = batchi_size, n_combs
+
+                else:
+                    celltype_index_batchi = celltype_index_input[:, starti:endi]
+                    assay_index_batchi = assay_index_input[:, starti:endi]
+                    ref_input_batchi = ref_input
+                    alt_input_batchi = alt_input
+                    pred_rows, pred_cols = ref_input.shape[0], batchi_size
+
+                torch.cuda.empty_cache()
+                ref_output = self.model_(celltype_index_batchi, assay_index_batchi, ref_input_batchi)
+                alt_output = self.model_(celltype_index_batchi, assay_index_batchi, alt_input_batchi)
+
+                torch.cuda.empty_cache()
+
+                # Signal across the sequence #
+                ref_preds = ref_output.unsqueeze(1).view(pred_rows, pred_cols)
+                alt_preds = alt_output.unsqueeze(1).view(pred_rows, pred_cols)
+                ref_batch_preds.append( ref_preds )
+                alt_batch_preds.append( alt_preds )
+
+                starti = endi
+
+                if verbose:
+                    print(f"Finished inference for batch {batchi+1} / {n_batches} in {round((time.time()-start_)/60, 3)}mins")
+
+            ref_preds = torch.concat(ref_batch_preds, dim=batch_axis)
+            alt_preds = torch.concat(alt_batch_preds, dim=batch_axis)
+
+            # TODO implement only calculating the predicted effect for a particular part of the input sequence.
+            diff = torch.abs((alt_preds - ref_preds)).sum( axis=0 ).cpu().numpy()
+            if self.embed_method == 'sum-abs-signed':
+                sign = (alt_preds - ref_preds).sum(axis=0).cpu().numpy()
+                nonzero = np.abs(sign) > 0
+                sign[nonzero] = sign[nonzero] / np.abs(sign[nonzero])
+                diff = diff * sign
+
+            #### Stratifying differences to celltype, assays.
+            stratified_result = np.zeros((len(celltype_names), len(assay_names)), dtype=np.float32)
+            stratified_result[celltype_indexes, assay_indexes] = diff
+            stratified_result = pd.DataFrame(stratified_result, index=celltype_names, columns=assay_names)
+
+        if not return_all:
+            return stratified_result
+        else:
+            return stratified_result, ref_preds.cpu().detach().numpy(), alt_preds.cpu().detach().numpy(), ref_seq, alt_seq, ref_features.cpu().detach().numpy(), alt_features.cpu().detach().numpy()
 
     def infer_multivariant_effects(self, vcf_df, index_base=0, #variant position are based on 0- or 1- base indexing.
                                    verbose=True, log_file=sys.stdout, batch_size=900, batch_axis=1,
