@@ -1,3 +1,5 @@
+tutorials/data/GRCh38-cCREs.bed
+tutorials/data/gencode.v26.annotation.gtf
 tutorials/data/genome.fa
 tutorials/data/genome.fa.fai
 .ipynb_checkpoints/

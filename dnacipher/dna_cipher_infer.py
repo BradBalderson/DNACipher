@@ -19,43 +19,43 @@ import pyfaidx
 import kipoiseq
 from kipoiseq import Interval
 
-from scipy.spatial import cKDTree
+import pybedtools
 
-#Sequence feature extraction via Nucleotide Transformer
-import re
 import sys
 
 from .dna_cipher_model import DNACipherModel
 
 class DNACipher():
 
-    def __init__(self, weight_path, sample_file, genome_file, config=None,
-                 transformer_model_name='enformer', transformer_layer=24, device='cpu',
-                 seqlen=196608, embed_method='sum-abs-signed', kernel_size=50,
-                 dnacv='dnacv4', # Version of DNACipher to use
+    def __init__(self, weight_path, sample_file, genome_file, config, device='cpu',
+                 transformer_model_name='enformer',
                  ):
         """ Constructs a DNACipher object, which allows for inference of variant function....
         """
 
         # Base run params
-        self.unsummed_methods = ['mean', 'max-diff', 'max-diff-token'] # Work on average embeddings, so just take diff between ref and alt.
-        self.summed_methods = ['sum-abs', 'sum-abs-signed'] # work on the full embedding, so different methods for contrasting ref and alt predictions.
-        self.allowed_methods = self.unsummed_methods + self.summed_methods
-        if embed_method not in self.allowed_methods:
-            raise Exception(f"Inputted embed_method {embed_method} is not one of {self.allowed_methods}")
-        self.embed_method = embed_method
-        self.kernel_size = kernel_size #For smoothing the embedding features!
         self.device = device
+
+        model_configs = {'enformer':
+                             {'seqlen': 196_608, # total receptive field
+                              'seq_pred_range': 114_688, # middle of sequence with predictions
+                              'seq_pred_binsize': 128, # resolution of predictions
+                              }
+                         }
+        if transformer_model_name not in model_configs:
+            raise Exception(f"Unsupported model: {transformer_model_name}")
+        else:
+            model_config = model_configs[ transformer_model_name ]
+
         self.transformer_model_name = transformer_model_name
-        self.transformer_layer = transformer_layer
 
         # Important for loading sequence information.
         self.seq_extracter = FastaStringExtractor( genome_file )
-        # if seqlen > 5994:
-        #     raise Exception("seqlen cannot be over maximum of 5994.")
 
-        # Length of sequence to be ingested by model, must not exceed the model max sequence length
-        self.seqlen = seqlen
+        self.seqlen = model_config['seqlen'] # Receptive field of the model
+        self.seq_pred_range = model_config['seq_pred_range'] # The middle of the sequence for which predictions are made
+        self.seq_edge_len = (self.seqlen - self.seq_pred_range) // 2 # +/- this edge does not have predictions.
+        self.seq_pred_binsize = model_config['seq_pred_binsize']
 
         ################################################################################################################
                                 # Storing information about the samples that were trained on #
@@ -103,25 +103,9 @@ class DNACipher():
 
         n_output_factors = 1
 
-        #### Loading the config... if not provide resort to default.
+        #### Loading the config... if not provided resort to default.
         if type(config) == type(None):
-            # TODO should add a .config as output when training a DNACipher model, so can simply read this information
-            #  from the config file when setting up a given model...
-            #  ALSO without the config, is not clear what indexes represent the celltype, assays!
-            ##### values below are why we need a config outputted as well as the model weights....
-            config = {'dropout_genome_layer': False,  # Will be in evaluation mode the whole time anyhow.
-                      'relu_genome_layer': True,  # This is something a config would be useful to get
-                      'learning_rate': 0,  # N/A in eval mode.
-                      'layer_norm': False,
-                      'relu_output': True,
-                      'activation_function': 'gelu',
-                      'triplet_loss': False,
-                      'epi_summarise_method': 'mean',
-                      'epi_signal_cutoff': 0,
-                      'dropout_rate': 0,
-                      'n_token_features': 1280,
-                      'n_token_factors': 1,  # REDUNDANT
-                      }
+            raise Exception("config cannot be None")
 
         ##### Determining the number of input arguments required by the inputted model!
         signature = list(inspect.signature(DNACipherModel.__init__).parameters.keys())
@@ -142,16 +126,13 @@ class DNACipher():
         ################################################################################################################
                         # Also attaching the Enformer model to generate the sequence embeddings #
         ################################################################################################################
-        self.seqlen_max = 196608 # The input sequence length to Enformer!
-        if self.seqlen > self.seqlen_max:
-            raise Exception(f"seqlen {seqlen} exceeds maximum model seqlen {self.seqlen_max}")
-
         from enformer_pytorch import from_pretrained
 
         self.transformer_model = from_pretrained('EleutherAI/enformer-official-rough').to( self.device )
 
     def get_celltype_embeds(self):
-        """ Gets the celltype embeddings.
+        """ # TODO test
+        Gets the celltype embeddings.
         """
         celltype_embeddings = np.zeros((len(self.celltypes), self.model_.celltype_embedding.embedding_dim))
         for celltype_index, celltype in enumerate(self.celltypes):
@@ -162,7 +143,8 @@ class DNACipher():
         return pd.DataFrame(celltype_embeddings, index=self.celltypes)
 
     def get_assay_embeds(self):
-        """ Gets the celltype embeddings.
+        """ # TODO test
+        Gets the celltype embeddings.
         """
         assay_embeddings = np.zeros((len(self.assays), self.model_.assay_embedding.embedding_dim))
         for assay_index, assay in enumerate(self.assays):
@@ -179,11 +161,9 @@ class DNACipher():
 
         return seq
 
-    def get_seq_tokens(self, seq, seq_index=None):
+    def get_seq_tokens(self, seq):
         """Gets sequence token for relevant model."""
-        if self.transformer_model_name != 'enformer': # Is NT model
-            return self.get_seq_tokens_NT(seq, seq_index=seq_index)
-        else:
+        if self.transformer_model_name == 'enformer':
             return self.get_seq_tokens_enformer(seq)
 
     def get_seq_tokens_enformer(self, seq):
@@ -191,69 +171,6 @@ class DNACipher():
         """
         dna_lkp = {'A': 0, 'C': 1, 'G': 2, 'T': 3, 'N': 4}
         return torch.tensor( [dna_lkp[char_.upper()] for char_ in seq] )
-
-    def get_seq_tokens_NT(self, seq, seq_index=None):
-        """ Tokenises a given sequence appropriately for input to nucleotide transformer.
-        """
-        # This is to make sure the tokenizer works properly, since treats every 'N'
-        # as a token, and as such results in too many tokens if excessive 'N' not removed.
-        tokens = self.transformer_tokenizer.tokenize(seq)[0][1:]  # Remove start token
-        diff = len(tokens) - 999  # Number of excess tokens
-        seq_N = re.sub(r'(?<=N)N(?=N)', '', seq, diff)  # Delete N's surround by N
-
-        token_output = self.transformer_tokenizer.tokenize(seq_N)
-        token_str = token_output[0]
-        token_id = token_output[1]
-        if len(token_str) > 1000:  # Too many tokens
-            # Let's try deleting any N's with a neighbouring N
-            diff = len(token_id) - 1000  # Number of excess tokens
-            seq_N = re.sub(r'N(?=N)', '', seq_N, diff)
-
-            token_output = self.transformer_tokenizer.tokenize(seq_N)
-            token_str = token_output[0]
-            token_id = token_output[1]
-
-            if len(token_str) > 1000:  # STILL too many tokens
-                # Now we can't remove the N without NOT representing the gap,
-                # we have to shorten the sequence on either side by some tokens..
-                diff = len(token_id) - 1000  # Number of excess tokens
-                front_remove = math.ceil(diff / 2) + 1  # +1 to remove the start token
-                back_remove = diff // 2
-                token_str_truncated = token_str[front_remove:len(token_str) - back_remove]
-                seq_N = ''.join(token_str_truncated)
-
-                token_output = self.transformer_tokenizer.tokenize(seq_N)
-                token_str = token_output[0]
-                token_id = token_output[1]
-
-                if len(token_str) > 1000:  # STILL too many tokens
-                    # In this case, I'm not sure what went wrong, so throw error!
-                    error_msg = "Sequence not tokenized correctly"
-                    if type(seq_index) != type(None):
-                        error_msg += f" for seq specified by region index {seq_index}, sequence:\n{seq}\n"
-                    # print(error_msg) # FOR DEBUGGING
-                    # return token_id, token_str
-                    raise Exception(error_msg)
-
-        return token_id
-
-    def get_token_features(self, token_ids):
-        """ Retrieves the features from Nucleotide Transformer based on the sequence tokens.
-        """
-        tokens = self.jnp.asarray(token_ids, dtype=self.jnp.int32)
-
-        # Running token through the network
-        outs = self.transformer_model.apply(self.transformer_parameters, self.random_key,
-                                            tokens)
-
-        # Extracting features per token, excluding the start token
-        token_features = self.jax.device_get(outs[f'embeddings_{self.transformer_layer}'][:, 1:, :])
-
-        #### Is implemented elsewhere now.
-        #### We average the features across the tokens
-        #####token_features_reshaped = token_features.mean(axis=1)
-        #####return token_features_reshaped
-        return token_features
 
     def get_seq_features(self, seq):
         """ Performs tokenization and extracts sequence features at a specified layer
@@ -264,12 +181,9 @@ class DNACipher():
             every 6 N's in a row with a single N.
         """
         token_id = self.get_seq_tokens(seq)
-        if self.transformer_model_name != 'enformer': # NT model.
-            return self.get_token_features([token_id])
-
-        else: # Dealing with Enformer, so need to extract features from it!
+        if self.transformer_model_name == 'enformer': # NT model.
             _, embeddings = self.transformer_model(token_id.to(self.device), return_embeddings=True)
-            return embeddings # 896 X 3072, i.e. 128bp bins, with 3072 seq features, only one transformation to the signal values.
+            return embeddings  # 896 X 3072, i.e. 128bp bins, with 3072 seq features, only one transformation to the signal values.
 
     def get_seqs(self, chr_, pos, ref, alt, index_base=0, seq_pos=None):
         """Gets and checks the reference sequence
@@ -280,19 +194,15 @@ class DNACipher():
         if type(seq_pos) == type(None):
             seq_pos = pos
 
-        if abs(seq_pos - pos) >= self.seqlen_max:
+        if abs(seq_pos - pos) >= self.seqlen:
             raise Exception(f"Inputted sequence centre location (seq_pos={seq_pos}) is > max sequence length from the "
                             f"inputted variant location (pos={pos}).")
-        elif abs(seq_pos - pos) >= (self.seqlen_max*0.95):
+        elif abs(seq_pos - pos) >= (self.seqlen*0.95):
             raise Warning(f"Inputted sequence centre location is >0.90 the maximum long-range effect prediction from "
                           f"the variant, may be less accurate.")
 
         side_seq = self.seqlen // 2
         midpoint = seq_pos - index_base
-        # if len(ref) == 1:  # Just a single position being replaced, so our midpoint is that position.
-        #     midpoint = seq_pos - index_base
-        # else:  # Longer ref, so our midpoint is halfway up the insertion..
-        #     midpoint = (seq_pos + (len(ref) // 2)) - index_base
 
         start = midpoint - side_seq
         mut_start = (pos - index_base) - start  # Mutation starts at this index position.
@@ -308,15 +218,6 @@ class DNACipher():
         # ref_seq[variant_seq_pos-3:variant_seq_pos], ref_seq[variant_seq_pos], ref_seq[variant_seq_pos+1:variant_seq_pos+8]
         # ('TAA', 'T', 'ATTAGAG')
 
-        # Will pad either side of the sequence with N content if is not the max-length of the model sequence
-        if len(ref_seq) != self.seqlen_max:
-            n_pad_left = (self.seqlen_max - len(ref_seq)) // 2
-            n_pad_right = math.ceil((self.seqlen_max - len(ref_seq)) / 2)
-            ref_seq = ('N' * n_pad_left) + ref_seq + ('N' * n_pad_right)
-
-            # Also need to update the mut_start, since we now have left padding that will increase the position.
-            mut_start += n_pad_left
-
         if len(ref) == 1:  # Simple SNP.
             if ref_seq[mut_start] != ref:
                 raise Exception(f"Ref was mean to have bp {ref} but got {ref_seq[mut_start]}.")
@@ -333,8 +234,8 @@ class DNACipher():
 
         # I don't consider case where alternate is shorter, since gets average sequence features anyhow..
         # Did check in the debugger, and NT automatically trims of spacer tokens, and I trim start, so is mean for alt_seq
-        if len(alt_seq) > self.seqlen_max:  # It's longer, possibly due to an INDEL. Will truncate on either side to keep ref in middle
-            diff = len(alt_seq) - self.seqlen_max
+        if len(alt_seq) > self.seqlen:  # It's longer, possibly due to an INDEL. Will truncate on either side to keep ref in middle
+            diff = len(alt_seq) - self.seqlen
             start_truncate = math.floor(diff / 2)
             end_truncate = math.ceil(diff / 2)
             alt_seq = alt_seq[start_truncate:-end_truncate]  # seqs will be slightly out of alignment BUT average features across anyhow.
@@ -343,58 +244,10 @@ class DNACipher():
         # alt_seq[variant_seq_pos-3:variant_seq_pos], alt_seq[variant_seq_pos], alt_seq[variant_seq_pos+1:variant_seq_pos+8]
         # ('TAA', 'C', 'ATTAGAG') # Correct!
 
-        return ref_seq, alt_seq
+        # seq_range, converting back to the index_base the user is using
+        seq_range = (chr_, start+index_base, end+index_base)
 
-    def get_seqs_var_middle(self, chr_, pos, ref, alt, index_base=0):
-        """Gets and checks the reference sequence.
-
-        Old version of get_seqs that does not support alternative sequence-centring from the variant position.
-        """
-        side_seq = self.seqlen // 2
-        if len(ref) == 1:  # Just a single position being replaced, so our midpoint is that position.
-            midpoint = pos - index_base
-        else:  # Longer ref, so our midpoint is halfway up the insertion..
-            midpoint = (pos + (len(ref) // 2)) - index_base
-
-        start = midpoint - side_seq
-        mut_start = (pos - index_base) - start  # Mutation starts at this index position.
-        end = midpoint + side_seq
-
-        # NOTE the fasta string extractor below ALREADY handles 'N' padding if the query region is longer than
-        # the chromosome!!
-        #### Extracting the sequence information and adding the mutation....
-        ref_seq = self.get_seq(chr_, start, end)
-
-        # Will pad either side of the sequence with N content if is not the max-length of the model sequence
-        if len(ref_seq) != self.seqlen_max:
-            n_pad_left = (self.seqlen_max - len(ref_seq)) // 2
-            n_pad_right = math.ceil((self.seqlen_max - len(ref_seq)) / 2)
-            ref_seq = ('N'*n_pad_left) + ref_seq + ('N'*n_pad_right)
-
-            # Also need to update the mut_start, since we now have left padding that will increase the position.
-            mut_start += n_pad_left
-
-        if len(ref) == 1:  # Simple SNP.
-            if ref_seq[mut_start] != ref:
-                raise Exception(f"Ref was mean to have bp {ref} but got {ref_seq[mut_start]}.")
-            alt_seq = ref_seq[0:mut_start] + alt + ref_seq[mut_start + 1:]
-        else:  # A little more complicated, since need to deal with INDEL variants #
-            mutation_indices = list(range(mut_start, mut_start + len(ref)))
-            ref_seq_split = np.array(list(ref_seq))
-            ref_ = ''.join(ref_seq_split[mutation_indices])
-            if ref_ != ref:
-                raise Exception(f"Ref was mean to have bp {ref} but got {ref_}.")
-            alt_seq = ref_seq[0:mut_start] + alt + ref_seq[mut_start + len(ref):]
-
-        # I don't consider case where alternate is shorter, since gets average sequence features anyhow..
-        # Did check in the debugger, and NT automatically trims of spacer tokens, and I trim start, so is mean for alt_seq
-        if len(alt_seq) > self.seqlen_max:  # It's longer, possibly due to an INDEL. Will truncate on either side to keep ref in middle
-            diff = len(alt_seq) - self.seqlen_max
-            start_truncate = math.floor(diff / 2)
-            end_truncate = math.ceil(diff / 2)
-            alt_seq = alt_seq[start_truncate:-end_truncate] # seqs will be slightly out of alignment BUT average features across anyhow.
-
-        return ref_seq, alt_seq
+        return ref_seq, alt_seq, seq_range
 
     def check_seqs(self, vcf_df, index_base=0, #variant position are based on 0- or 1- base indexing.
                    verbose=True, log_file=sys.stdout):
@@ -409,7 +262,7 @@ class DNACipher():
 
             chr_, pos, ref, alt = vcf_df.values[i, 0:4]
             try:
-                ref_seq, alt_seq = self.get_seqs(chr_, pos, ref, alt, index_base=index_base)
+                ref_seq, alt_seq, _ = self.get_seqs(chr_, pos, ref, alt, index_base=index_base)
                 good_indices.append( i )
 
             except Exception as exception:
@@ -430,401 +283,34 @@ class DNACipher():
         print(f"All variants checked. Returning correct variants.", file=log_file, flush=True)
         return vcf_df.iloc[good_indices, :]
 
-    def get_variant_embeds(self, chr_, pos, ref, alt, index_base=0, full_embeds=False, transpose=True,
-                           seq_pos=None,
-                           ):
-        """Gets the embeddings for the reference and alternative variant.
+    def get_variant_embeds(self, chr_, pos, ref, alt, index_base=0, seq_pos=None):
+        """ Gets the embeddings for the reference and alternative variant.
         """
-        ref_seq, alt_seq = self.get_seqs(chr_, pos, ref, alt, index_base=index_base, seq_pos=seq_pos)
+        ref_seq, alt_seq, seq_range = self.get_seqs(chr_, pos, ref, alt, index_base=index_base, seq_pos=seq_pos)
 
         #### Extracting the features...
         # Checked how this worked for truncated alt from INDEL, and works fine.
         # BUT have not checked if the
         torch.cuda.empty_cache()
-        ref_features = self.get_seq_features(ref_seq)
+        ref_features = self.get_seq_features( ref_seq )
         torch.cuda.empty_cache()
-        alt_features = self.get_seq_features(alt_seq)
-        torch.cuda.empty_cache()
-
-        if full_embeds: # For predicting across the sequence region
-            return ref_features, alt_features, ref_seq, alt_seq
-
-        # Just average each, same as used for training.
-        if self.embed_method == 'mean':
-            ref_features = ref_features.mean( axis=1 )
-            alt_features = alt_features.mean( axis=1 )
-
-        else:
-            #### Dealing with case where there is a deletion. To handle this, will find the closest matching token
-            #### in the reference, and subset the reference to this.
-            if ref_features.shape[1] != alt_features.shape[1]:
-                # Will subset the reference based on matching tokens, to get the difference
-                tree = cKDTree(ref_features[0, :, :])
-                _, indices = tree.query(alt_features[0, :, :])
-                ref_features = ref_features[:, indices, :]
-
-            if self.embed_method=='max-diff':
-                # Will construct the ref and alt based embeddings by taking token values that are maximally differenct
-                # between sequences.
-                diff = ref_features - alt_features
-                abs_diff = np.abs( diff )
-                max_diff_tokens = np.argmax(abs_diff, axis=1)[0,:]
-                ref_features = np.array([[ref_features[0, max_diff_tokens[i], i] for i in range(ref_features.shape[-1])]])
-                alt_features = np.array([[alt_features[0, max_diff_tokens[i], i] for i in range(alt_features.shape[-1])]])
-
-                #### For development purposes, want to see how much of a difference it makes in terms of the embedding.
-                # Below shows that using the maximum difference tokens for each feature results in a very significant
-                # difference in the latent space change. Whereas the change in the averaged embedding for SNP is almost
-                # negligible (which would explain some preliminary results where DNACipher predicting almost zero effects
-                # for all variants).
-                # dev_ = False
-                # if dev_:
-                #     max_diffs = np.array([diff[0, max_diff_tokens[i], i] for i in range(max_diff_tokens.shape[-1])])
-                #     np.histogram(max_diffs)
-                #     # (array([  9,  50, 186, 399,  80, 375, 142,  29,   9,   1]),
-                #     #  array([-0.952913  , -0.73517025, -0.51742744, -0.2996847 , -0.08194195,
-                #     #          0.13580081,  0.35354358,  0.5712863 ,  0.78902906,  1.0067718 ,
-                #     #          1.2245146 ], dtype=float32))
-                #
-                #     x, y = ref_features.mean(axis=1), alt_features.mean(axis=1)
-                #     diffs_avg = x-y
-                #     np.histogram(diffs_avg)
-                #     # (array([2, 12, 74, 176, 319, 354, 225, 92, 18, 8]),
-                #     #  array([-3.6056042e-03, -2.9033958e-03, -2.2011877e-03, -1.4989793e-03,
-                #     #         -7.9677103e-04, -9.4562769e-05, 6.0764549e-04, 1.3098537e-03,
-                #     #         2.0120621e-03, 2.7142703e-03, 3.4164786e-03], dtype=float32))
-
-            elif self.embed_method=='max-diff-token':
-                # Will construct the ref and alt embeddings by taking the token with the largest difference between ref
-                # and alt.
-                diff = ref_features - alt_features
-                abs_avg_diff = np.abs(diff[0,:,:]).mean(axis=1)
-                token_max_diff = np.argmax( abs_avg_diff )
-
-                ref_features = ref_features[:, token_max_diff, :]
-                alt_features = alt_features[:, token_max_diff, :]
-
-                ##### For testing purposes... this looks promising, can see some changes now.
-                # np.histogram(ref_features-alt_features)
-                # (array([6, 23, 105, 237, 321, 327, 182, 68, 10, 1]),
-                #  array([-0.8210764, -0.65007627, -0.47907612, -0.308076, -0.13707586,
-                #         0.03392428, 0.20492442, 0.37592456, 0.5469247, 0.71792483,
-                #         0.88892496], dtype=float32))
-
-            elif self.embed_method in self.summed_methods:
-
-
-                # Enformer has different embedding shape, 896 X 3072 features, making this step unnecesary.
-                if self.transformer_model_name!='enformer': # NT model
-                    ref_features = ref_features[0,:,:]
-                    alt_features = alt_features[0,:,:]
-
-                else: # However do need to convert enformer features to numpy array.
-                    ref_features = ref_features.cpu().detach().numpy()
-                    alt_features = alt_features.cpu().detach().numpy()
-
-                # if kernel_size > 0:
-                # Will put a kernal over the features to reduce noise! #
-                kernel = np.ones(self.kernel_size) / self.kernel_size
-
-                # This actually results in a transposition...
-                ref_features_smoothed = np.array(
-                           [np.convolve(ref_features[:, col], kernel, 'valid') for col in range(ref_features.shape[1])])
-                alt_features_smoothed = np.array(
-                           [np.convolve(alt_features[:, col], kernel, 'valid') for col in range(alt_features.shape[1])])
-
-                # else: # Confusing, but it is because I was originally smoothing each time, now I smooth only optionally.
-                #     ref_features_smoothed = ref_features.transpose()
-                #     alt_features_smoothed = alt_features.transpose()
-
-                if transpose:
-                    ref_features = ref_features_smoothed.transpose()
-                    alt_features = alt_features_smoothed.transpose()
-                else:
-                    ref_features = ref_features_smoothed
-                    alt_features = alt_features_smoothed
-
-        return ref_features, alt_features, ref_seq, alt_seq # features are in shape feature X seq_token
-
-    def infer_specific_effect(self, chr_, pos, ref, alt, celltype, assay, index_base=0,
-                              return_all=False, # Whether to return intermediate results..
-                              seq_pos=None, # the position to centre the ref and alt sequence on!
-                              full_embeds=True, all_combinations=True,
-                              ):
-        """ Infer the variant effect size for the given celltypes and assays.
-
-        Parameters
-        ----------
-        chr_: str
-            Chromosome location of the genetic variant.
-        pos: int
-            Location on the chromosome of the variant.
-        ref: str
-            Reference sequence at the chromosome location.
-        alt: str
-            Alternative sequence at the chromosome location.
-        celltype: str or list<str>
-            A single cell type from within dnacipher.celltypes, or a list of such cell types.
-        assay: str or list<str>
-            A single assay from within dnacipher.assays, or a list of such assays.
-        index_base: int
-            0 or 1, specifies the index-base of the inputted variation position (pos).
-        return_all: bool
-            True to return the signals across the ref and alt sequeneces, the ref and alt sequences, and the latent
-            genome representation of the ref and alt sequences.
-        seq_pos: int
-            Specifies the position to centre the query sequence on, must be within dnacipher.seqlen_max in order to predict
-            effect of the genetic variant. If None then will centre the query sequence on the inputted variant.
-        full_embeds: bool
-            Whether to use the full set of embeddings generated from the sequence. If False then depending on the
-            initialisation of the DNACipher model will use different methods to summarise the sequence embedding prior
-            to inference.
-        all_combinations: bool
-            True to generate predicetiosn for all combinations of inputted cell types and assays.
-            If False, then celltype and assays input must be lists of the same length,
-            and only those specific combinations will be generated.
-
-        Returns
-        --------
-        diff: float or numpy.array<float>
-            Predicted overall signal difference across the sequence for the predicted signal of the ref and alt sequences.
-        experiments_outputted: list< tuple<str, str> >
-            In-line with diff, each tuple in the list specifies the (celltype, assay) of the predicted effect.
-        ref_signals: np.ndarray<float>
-            Rows specify the position in the sequence, which are 128bp resolution bins, corresponding to the middle 114,688bp of the input sequence.
-            Columns refer to the experiment, and are in-line with 'experiments_outputted'.
-        alt_signals: np.ndarray<float>
-            Equivalent to 'ref_signals', except for the alternative sequence.
-        ref_seq: str
-            Reference sequence used for the reference signal inference.
-        alt_seq: str
-            Alternative sequence use for the alternative signal inference.
-        ref_features: np.ndarray<float>
-            Rows are position in the sequence (equivalent to rows in ref_signals), columns are sequence features used for inference.
-        alt_features: np.ndarray<float>
-            Equivalent to ref_features for the alternative sequence.
-        """
-
-        ### Predicting the change...
-        if type(celltype) == str:
-            celltype = [celltype]
-
-        if type(assay) == str:
-            assay = [assay]
-
-        missing_celltypes = [ct for ct in celltype if ct not in self.celltypes]
-        missing_assays = [assay_ for assay_ in assay if assay_ not in self.assays]
-        if len(missing_celltypes) > 0:
-            raise Exception(f"Inputted cell types not represented in the model: {missing_celltypes}")
-        if len(missing_assays) > 0:
-            raise Exception(f"Inputted assays not represented in the model: {missing_assays}")
-
-        if not all_combinations and len(celltype) != len(assay):
-            raise Exception("Specified not predicting all combinations of inputted cell types and assays, yet "
-                            "did not input the same number of cell types and assays to specify specific experiments."
-                            f" Number of cell types inputted, number of assays inputted: {len(celltype), len(assay)}.")
-
-        celltype_indexes = np.array( [self.celltypes.index( celltype_ ) for celltype_ in celltype] )
-        assay_indexes = np.array( [self.assays.index( assay_ ) for assay_ in assay] )
-
-        # Generating all pairs of the cell types and assays
-        if all_combinations:
-            experiments_to_pred = np.array(list( product(celltype_indexes, assay_indexes) ), dtype=int).transpose()
-            celltype_indexes = experiments_to_pred[0,:]
-            assay_indexes = experiments_to_pred[1,:]
-
-        # Getting the sequence features
-        ref_features, alt_features, ref_seq, alt_seq = self.get_variant_embeds(chr_, pos, ref, alt, index_base,
-                                                                               seq_pos=seq_pos, full_embeds=full_embeds)
-
-        celltype_input = torch.tensor(celltype_indexes, device=self.device).unsqueeze(0).expand(ref_features.size(0), -1
-                                                                                                )
-        assay_input = torch.tensor(assay_indexes, device=self.device).unsqueeze(0).expand(ref_features.size(0), -1)
-
-        ref_input = torch.tensor(ref_features, device=self.device)
-        alt_input = torch.tensor(alt_features, device=self.device)
-
-        #### Predicting change
-        with torch.no_grad():
-            ref_output = self.model_(celltype_input, assay_input, ref_input)
-            ref_output = ref_output.unsqueeze(1).view(ref_features.size(0), celltype_input.shape[1]) #position X assay
-
-            alt_output = self.model_(celltype_input, assay_input, alt_input)
-            alt_output = alt_output.unsqueeze(1).view(ref_features.size(0), celltype_input.shape[1])  # position X assay
-
-        diff = torch.abs(alt_output - ref_output).sum(axis=0).cpu()
-        if self.embed_method == 'sum-abs-signed': # TODO need to check this actually works!!!
-            sign = (alt_output - ref_output).sum(axis=0).cpu()
-            nonzero = torch.abs(sign) > 0
-            sign[nonzero] = sign[nonzero] / np.abs(sign[nonzero])
-            diff = diff * sign
-
-        if len(diff.shape) == 0: # Only a single experiment predicted
-            diff = diff.item()
-        else:
-            diff = diff.numpy()
-
-        #### Getting the cell type assay names that we output!
-        experiments_output = [(str( self.celltypes[ct_index] ), str(self.assays[assay_index]))
-                              for ct_index, assay_index in zip(celltype_indexes, assay_indexes)]
-
-        if not return_all:
-            return diff, experiments_output
-        else:
-            return diff, experiments_output, ref_output.cpu().detach().numpy(), alt_output.cpu().detach().numpy(), ref_seq, alt_seq, ref_features.cpu().detach().numpy(), alt_features.cpu().detach().numpy()
-
-    def infer_effects_OLD(self, chr_, pos, ref, alt, index_base=0, batch_size=900,
-                      batch_axis = 1, #Refers to batch by sequence. batch_axis=1 will batch by celltype/assay, batch_axis=0 will do so by sequence embeddings.
-                      seq_pos = None, # the position to centre the ref and alt sequence on!
-                      full_embeds = True, # Whether to use the full embeds or not for the effect inference,
-                                           # if false, will perform some smoothing of the embeddings, making them slightly
-                                           # smaller but lowering the resolution of the embeddings..
-                      verbose=False,
-                     ):
-        """ Infers effects across all celltype, assays. Using batching strategy to circumvent high memory requirements.
-
-        Parameters
-        ----------
-        chr_: str
-            Chromosome location of the genetic variant.
-        pos: int
-            Location on the chromosome of the variant.
-        ref: str
-            Reference sequence at the chromosome location.
-        alt: str
-            Alternative sequence at the chromosome location.
-        index_base: int
-            0 or 1, specifies the index-base of the inputted variation position (pos).
-        batch_size: int
-            The number of experiments or sequence embeddings to parse at a time through the model to predict signals. Lower if run into memory errors.
-        batch_axis: int
-            0 or 1, 1 will batch by experiments, batch_axis=0 will batch by sequence position. Default is best.
-        seq_pos: int
-            Specifies the position to centre the query sequence on, must be within dnacipher.seqlen_max in order to predict
-            effect of the genetic variant. If None then will centre the query sequence on the inputted variant.
-        full_embeds: bool
-            Whether to use the full set of embeddings generated from the sequence. If False then depending on the
-            initialisation of the DNACipher model will use different methods to summarise the sequence embedding prior
-            to inference.
-        verbose: bool
-            True for detailed printing of progress.
-
-        Returns
-        --------
-        pred_effects: pd.DataFrame
-            Rows are cell types, columns are assays, values are summarised predicted effects of the variant in the particular celltype/assay combination.
-        """
-
-        ref_features, alt_features, ref_seq, alt_seq = self.get_variant_embeds(chr_, pos, ref, alt, index_base,
-                                                                               transpose=False,
-                                                                               seq_pos=seq_pos,
-                                                                               full_embeds=full_embeds
-                                                                               )
-        ref_features = torch.tensor(ref_features, device=self.device, dtype=torch.float32)
-        alt_features = torch.tensor(alt_features, device=self.device, dtype=torch.float32)
-        # ref_features = ref_features.transpose(0, 1)  # .view(ref_features.shape[1], ref_features.shape[0])
-        # alt_features = alt_features.transpose(0, 1)  # .view(alt_features.shape[1], alt_features.shape[0])
-
+        alt_features = self.get_seq_features( alt_seq )
         torch.cuda.empty_cache()
 
-        with torch.no_grad():
-            ##### Need to construct for multi-input...
-            celltype_indices = list(range(len(self.celltypes)))
-            assay_indices = list(range(len(self.assays)))
-            celltype_index_combs = []
-            assay_index_combs = []
-            for ct_index in celltype_indices:
-                for assay_index in assay_indices:
-                    celltype_index_combs.append( ct_index )
-                    assay_index_combs.append( assay_index )
+        # Determining the positions of the sequence bins
+        pred_start = seq_range[1] + self.seq_edge_len # Getting the predicted sequence range
+        pred_end = seq_range[2] - self.seq_edge_len
 
-            # Strategy here repeats each of the sequence region values (as shallow script) ncelltype_input times in a row
-            # before then repeating the next set of sequence features, and so on.
-            # NOTE the .reshape results in deep copy....
-            n_combs = len(celltype_index_combs)  # The number of combinations we need to expand up to!
-            ref_input = ref_features
-            alt_input = alt_features
+        seq_bin_starts = list(range(pred_start, pred_end, self.seq_pred_binsize))
+        seq_bin_ends = list(range(pred_start+self.seq_pred_binsize, pred_end+1, self.seq_pred_binsize))
 
-            celltype_index_input = torch.tensor(celltype_index_combs, device=self.device).unsqueeze(0).expand(
-                                                                                            ref_input.size(0), -1
-                                                                                        )
-            assay_index_input = torch.tensor(assay_index_combs, device=self.device).unsqueeze(0).expand(
-                                                                                            ref_input.size(0), -1
-                                                                                        )
+        seq_bins = np.array([seq_bin_starts, seq_bin_ends]).transpose()
 
-            #### Checking to make sure the celltype,assays being repeated correctly.
-            #print(celltype_index_input[0:n_combs+10], assay_index_input[0:n_combs+10])
-            #### Will do in batches to get it to scale !
-            if batch_axis not in [0, 1]:
-                raise Exception(f"Invalid batch axis: {batch_axis}.")
-
-            total = ref_input.shape[0] if batch_axis==0 else n_combs
-            batch_size = min([batch_size, total])
-            n_batches = math.ceil( total / batch_size )
-
-            starti = 0
-            ref_batch_preds = []
-            alt_batch_preds = []
-            start_ = time.time()
-            for batchi in range(n_batches):
-                endi = min([starti+batch_size, total])
-                batchi_size = endi-starti
-
-                if batch_axis == 0: # Batching either by sequence or celltype/assay
-                    celltype_index_batchi = celltype_index_input[starti:endi]
-                    assay_index_batchi = assay_index_input[starti:endi]
-                    ref_input_batchi = ref_input[starti:endi]
-                    alt_input_batchi = alt_input[starti:endi]
-                    pred_rows, pred_cols = batchi_size, n_combs
-
-                else:
-                    celltype_index_batchi = celltype_index_input[:, starti:endi]
-                    assay_index_batchi = assay_index_input[:, starti:endi]
-                    ref_input_batchi = ref_input
-                    alt_input_batchi = alt_input
-                    pred_rows, pred_cols = ref_input.shape[0], batchi_size
-
-                torch.cuda.empty_cache()
-                ref_output = self.model_(celltype_index_batchi, assay_index_batchi, ref_input_batchi)
-                alt_output = self.model_(celltype_index_batchi, assay_index_batchi, alt_input_batchi)
-
-                torch.cuda.empty_cache()
-
-                # Signal across the sequence #
-                ref_preds = ref_output.unsqueeze(1).view(pred_rows, pred_cols)
-                alt_preds = alt_output.unsqueeze(1).view(pred_rows, pred_cols)
-                ref_batch_preds.append( ref_preds )
-                alt_batch_preds.append( alt_preds )
-
-                starti = endi
-
-                if verbose:
-                    print(f"Finished inference for batch {batchi+1} / {n_batches} in {round((time.time()-start_)/60, 3)}mins")
-
-            ref_preds = torch.concat(ref_batch_preds, dim=batch_axis)
-            alt_preds = torch.concat(alt_batch_preds, dim=batch_axis)
-
-            diff = torch.abs((alt_preds - ref_preds)).sum(axis=0).cpu().numpy()
-            if self.embed_method == 'sum-abs-signed':
-                sign = (alt_preds - ref_preds).sum(axis=0).cpu().numpy()
-                nonzero = np.abs(sign) > 0
-                sign[nonzero] = sign[nonzero] / np.abs(sign[nonzero])
-                diff = diff * sign
-
-            #### Stratifying differences to celltype, assays.
-            stratified_result = np.zeros((len(self.celltypes), len(self.assays)), dtype=np.float32)
-            stratified_result[celltype_index_combs, assay_index_combs] = diff
-            stratified_result = pd.DataFrame(stratified_result, index=self.celltypes, columns=self.assays)
-
-        return stratified_result
+        return ref_features, alt_features, ref_seq, alt_seq, seq_range, seq_bins
 
     def infer_effects(self, chr_, pos, ref, alt, celltypes, assays,
-                      index_base=0, batch_size=None,
-                      batch_by = None, #Refers to batch by sequence. batch_axis=1 will batch by celltype/assay, batch_axis=0 will do so by sequence embeddings.
-                      seq_pos = None, # the position to centre the ref and alt sequence on!
-                      full_embeds = True, # Whether to use the full embeds or not for the effect inference,
-                                           # if false, will perform some smoothing of the embeddings, making them slightly
-                                           # smaller but lowering the resolution of the embeddings..
+                      index_base=0, seq_pos = None, effect_region = None,
+                      batch_size=None, batch_by = None,
                       all_combinations=True,
                       return_all = False,
                       verbose=False,
@@ -847,17 +333,16 @@ class DNACipher():
             A single assay from within dnacipher.assays, or a list of such assays.
         index_base: int
             0 or 1, specifies the index-base of the inputted variation position (pos).
-        batch_size: int
-            The number of experiments or sequence embeddings to parse at a time through the model to predict signals. Lower if run into memory errors. None means compute everything in one batch.
-        batch_by: int
-            Indicates how to batch the data when fed into the model, either by 'experiments', 'sequence', or None. If None, will automatically choose whichever is the larger axis.
         seq_pos: int
             Specifies the position to centre the query sequence on, must be within dnacipher.seqlen_max in order to predict
             effect of the genetic variant. If None then will centre the query sequence on the inputted variant.
-        full_embeds: bool
-            Whether to use the full set of embeddings generated from the sequence. If False then depending on the
-            initialisation of the DNACipher model will use different methods to summarise the sequence embedding prior
-            to inference.
+        effect_region: tuple, list, or None
+            Specifies the region to calculated the predicted effect size, in format (start, end). The chromosome is
+            taken as the same as the inputted variant chromosome (since we cannot currently predicted trans-effects).
+        batch_size: int
+            The number of experiments or sequence embeddings to parse at a time through the model to predict signals. Lower if run into memory errors. None means compute everything in one batch.
+        batch_by: int
+            Indicates how to batch the data when fed into the model, either by 'experiment', 'sequence', or None. If None, will automatically choose whichever is the larger axis.
         all_combinations: bool
             True to generate predicetiosn for all combinations of inputted cell types and assays.
             If False, then celltype and assays input must be lists of the same length,
@@ -874,7 +359,7 @@ class DNACipher():
             Rows are cell types, columns are assays, values are summarised predicted effects of the variant in the particular celltype/assay combination.
         """
         # Checking batch_by input:
-        batch_options = ['sequence', 'experiment', None]
+        batch_options = ['experiment', 'sequence', None]
         if batch_by not in batch_options:
             raise Exception(
                 f"Unsupported input option, batch_by={batch_by}, but only these options supported: {batch_options}")
@@ -903,6 +388,12 @@ class DNACipher():
 
         # Generating all pairs of the cell types and assays
         if all_combinations:
+            # Checking that the cell types or assays are not duplicated, because this causes issues in the logic!
+            if len(set(list(celltypes))) != len(celltypes):
+                raise Exception("Inputted celltypes contain duplicates, deduplicate first e.g. list(set(celltypes)).")
+            if len(set(list(assays))) != len(assays):
+                raise Exception("Inputted assays contain duplicates, deduplicate first e.g. list(set(assays)).")
+
             experiments_to_pred = np.array(list(product(celltype_indexes, assay_indexes)), dtype=int).transpose()
             celltype_indexes = experiments_to_pred[0, :]
             assay_indexes = experiments_to_pred[1, :]
@@ -917,11 +408,35 @@ class DNACipher():
             assay_names = assays
 
         # Getting the sequence embeddings input:
-        ref_features, alt_features, ref_seq, alt_seq = self.get_variant_embeds(chr_, pos, ref, alt, index_base,
-                                                                               transpose=False,
-                                                                               seq_pos=seq_pos,
-                                                                               full_embeds=full_embeds
+        ref_features, alt_features, ref_seq, alt_seq, seq_range, seq_bins = self.get_variant_embeds(chr_, pos, ref, alt,
+                                                                                            index_base, seq_pos=seq_pos,
                                                                                )
+
+        # Calculating the predicted effect for a particular part of the input sequence
+        subset_output_preds = False
+        seq_bins_inrange = None
+        if type(effect_region)!=type(None): # Only calculate effects for this range of the sequence.
+            seq_bins_inrange = np.logical_and(seq_bins[:, 0] >= effect_region[0],
+                                              seq_bins[:, 0] < effect_region[1])
+            if sum(seq_bins_inrange) == 0: # No intersect with the outputted predictions, doesn't make sense.
+                raise Exception(f"Inputted effect_region ({effect_region}) does not intersect with the region of the "
+                                f"sequence for which signals can be inferred ({(seq_bins[0,0], seq_bins[-1,-1])})."
+                                f"Either set effect_region=None to use whole region to estimated effect size, or "
+                                f"set effect_region to be within the bounds of {(seq_bins[0,0], seq_bins[-1,-1])}.")
+
+            if return_all:
+                # Indicates the user still wants the full output of predicted signals along the sequences, and therefore
+                # we need to subset the seq_bins_inrage AFTER inferring the full set of effects.
+                subset_output_preds = True
+
+            else:
+                subset_output_preds = False
+
+                # If user does not want the full predicted effects as output, so can speed up inference by only making
+                # signal predictions at the locations the locations need to make the effect prediction!
+                # Take the bins that have ANY overlap with the specified range of effects
+                ref_features = ref_features[seq_bins_inrange, :]
+                alt_features = alt_features[seq_bins_inrange, :]
 
         # Creating tensor representations of these inputs:
         torch.cuda.empty_cache()
@@ -930,8 +445,8 @@ class DNACipher():
                                                                                                 -1)
         assay_index_input = torch.tensor(assay_indexes, device=self.device).unsqueeze(0).expand(ref_features.size(0), -1)
 
-        ref_input = torch.tensor(ref_features, device=self.device, dtype=torch.float32)
-        alt_input = torch.tensor(alt_features, device=self.device, dtype=torch.float32)
+        ref_input = ref_features.clone().detach().to(device=self.device)
+        alt_input = alt_features.clone().detach().to(device=self.device)
 
         # Determining number of combinations to impute:
         n_combs = len( celltype_indexes )
@@ -1002,27 +517,56 @@ class DNACipher():
             ref_preds = torch.concat(ref_batch_preds, dim=batch_axis)
             alt_preds = torch.concat(alt_batch_preds, dim=batch_axis)
 
-            # TODO implement only calculating the predicted effect for a particular part of the input sequence.
-            diff = torch.abs((alt_preds - ref_preds)).sum( axis=0 ).cpu().numpy()
-            if self.embed_method == 'sum-abs-signed':
+            # using sum-abs-signed method to score variants
+            if not subset_output_preds: # Already have the relevant set of predictions we want to infer effects for
+                diff = torch.abs((alt_preds - ref_preds)).sum(axis=0).cpu().numpy()
                 sign = (alt_preds - ref_preds).sum(axis=0).cpu().numpy()
-                nonzero = np.abs(sign) > 0
-                sign[nonzero] = sign[nonzero] / np.abs(sign[nonzero])
-                diff = diff * sign
 
-            #### Stratifying differences to celltype, assays.
-            stratified_result = np.zeros((len(celltype_names), len(assay_names)), dtype=np.float32)
-            stratified_result[celltype_indexes, assay_indexes] = diff
-            stratified_result = pd.DataFrame(stratified_result, index=celltype_names, columns=assay_names)
+            else: # Need to subset to the relevant positions
+                alt_preds_sub = alt_preds[seq_bins_inrange, :]
+                ref_preds_sub = ref_preds[seq_bins_inrange, :]
+
+                diff = torch.abs((alt_preds_sub - ref_preds_sub)).sum(axis=0).cpu().numpy()
+                sign = (alt_preds_sub - ref_preds_sub).sum(axis=0).cpu().numpy()
+
+        nonzero = np.abs(sign) > 0
+        sign[nonzero] = sign[nonzero] / np.abs(sign[nonzero])
+        diff = diff * sign
+
+        #### Stratifying differences to celltype, assays. Taking into account what celltype, assay were inputted.
+        celltype_names_unique = list( np.unique( celltype_names ) )
+        assay_names_unique = list( np.unique( assay_names ) )
+
+        celltype_names_indexes = [celltype_names_unique.index(ct_name) for ct_name in celltype_names]
+        assay_names_indexes = [assay_names_unique.index(assay_name) for assay_name in assay_names]
+
+        stratified_result = np.full((len(celltype_names_unique), len(assay_names_unique)),
+                                    fill_value=np.nan, dtype=np.float32) # Account for all_combinations = False
+        stratified_result[celltype_names_indexes, assay_names_indexes] = diff
+        stratified_result = pd.DataFrame(stratified_result, index=celltype_names_unique, columns=assay_names_unique)
 
         if not return_all:
             return stratified_result
-        else:
-            return stratified_result, ref_preds.cpu().detach().numpy(), alt_preds.cpu().detach().numpy(), ref_seq, alt_seq, ref_features.cpu().detach().numpy(), alt_features.cpu().detach().numpy()
 
-    def infer_multivariant_effects(self, vcf_df, index_base=0, #variant position are based on 0- or 1- base indexing.
-                                   verbose=True, log_file=sys.stdout, batch_size=900, batch_axis=1,
-                                   full_embeds=True, seq_pos_col=None):
+        else:
+            # Need to return the full result, so will reformat the sequence-specific information.
+            seq_bin_names = [f"{chr_}_{seq_bins[i,0]}_{seq_bins[i,1]}" for i in range(seq_bins.shape[0])]
+            experiment_names_flat = ['---'.join(experiment_names[:,i]) for i in range(experiment_names.shape[1])]
+
+            ref_preds_df = pd.DataFrame(ref_preds.cpu().detach().numpy(), index=seq_bin_names,
+                                        columns=experiment_names_flat)
+            alt_pred_df = pd.DataFrame(alt_preds.cpu().detach().numpy(), index=seq_bin_names,
+                                        columns=experiment_names_flat)
+
+            ref_features_df = pd.DataFrame(ref_features.cpu().detach().numpy(), index=seq_bin_names)
+            alt_features_df = pd.DataFrame(alt_features.cpu().detach().numpy(), index=seq_bin_names)
+
+            return stratified_result, ref_preds_df, alt_pred_df, ref_seq, alt_seq, ref_features_df, alt_features_df
+
+    def infer_multivariant_effects(self, vcf_df, celltypes, assays,
+                                    index_base=0, seq_pos_col=None, effect_region_cols=None,
+                                    batch_size=900, batch_by=None, all_combinations=True,
+                                    verbose=True, log_file=sys.stdout):
         """Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per
             variant, and predicted effect sizes across the columns for all celltype/assay combinations.
 
@@ -1030,19 +574,23 @@ class DNACipher():
         ----------
         vcf: pd.DataFrame
             Rows represent particular genetic variants, columns are CHR, POS, REF, ALT
+        celltypes: str or list<str>
+            A single cell type from within dnacipher.celltypes, or a list of such cell types.
+        assays: str or list<str>
+            A single assay from within dnacipher.assays, or a list of such assays.
         index_base: int
             0 or 1, specifies the index-base of the inputted variant position (pos).
         batch_size: int
             The number of experiments or sequence embeddings to parse at a time through the model to predict signals. Lower if run into memory errors.
-        batch_axis: int
-            0 or 1, 1 will batch by experiments, batch_axis=0 will batch by sequence position. Default is best.
+        batch_by: int
+            Indicates how to batch the data when fed into the model, either by 'experiment', 'sequence', or None. If None, will automatically choose whichever is the larger axis.
         seq_pos_col: int
             Column in vcf that specifies the position to centre the query sequence on, must be within dnacipher.seqlen_max in order to predict
             effect of the genetic variant. If None then will centre the query sequence on the inputted variant.
-        full_embeds: bool
-            Whether to use the full set of embeddings generated from the sequence. If False then depending on the
-            initialisation of the DNACipher model will use different methods to summarise the sequence embedding prior
-            to inference.
+        effect_region_cols: tuple(str, str)
+            Specifies columns in the inputted data frame, with the first specifying the start position (in genome coords)
+            to measure the effect, and the second specifying end position (in genome coords) to measure the effect for
+            the given variant in the sequence field-of-view across all the different celltype-assays.
         verbose: bool
             True for detailed printing of progress.
 
@@ -1051,11 +599,32 @@ class DNACipher():
         var_pred_effects: pd.DataFrame
             Rows are variants, and columns are predicted experiments, in format '<celltype>---<assay>'. Values are summarised predicted effects of the variant in the particular celltype/assay combination.
         """
-        seq_positions = None
+        seq_pos = None
         if type(seq_pos_col)!=type(None):
             seq_positions = vcf_df[seq_pos_col].values
 
-        multivariant_effects = np.zeros((vcf_df.shape[0], self.n_imputable_celltype_assays), dtype=np.float32)
+        effect_region = None
+        if type(effect_region_cols)!=type(None):
+            effect_regions = vcf_df[effect_region_cols].values
+
+        # Need to determine a list of cell types and assays that will be inferred, since will output a flattened
+        # dataframe.
+        imputed_celltypes = []
+        imputed_assays = []
+        imputed_celltype_assays = []
+        imputed_celltype_assays_str = []
+        if all_combinations:
+            iterator_ = product(celltypes, assays) # Need to generate pairs.
+        else:
+            iterator_ = zip(celltypes, assays) # Pairs already generated by user.
+
+        for celltype, assay in iterator_:
+            imputed_celltypes.append( celltype )
+            imputed_assays.append( assay )
+            imputed_celltype_assays.append( [celltype, assay] )
+            imputed_celltype_assays_str.append( '---'.join( [celltype, assay] ) )
+
+        multivariant_effects = np.zeros((vcf_df.shape[0], len(imputed_celltype_assays)), dtype=np.float32)
         var_names = []
         for i in range(vcf_df.shape[0]):
 
@@ -1063,11 +632,27 @@ class DNACipher():
             if type(seq_pos_col)!=type(None):
                 seq_pos = seq_positions[i]
 
-            variant_effects = self.infer_effects(chr_, pos, ref, alt, index_base,
-                                                 batch_size=batch_size, batch_axis=batch_axis,
-                                                 full_embeds=full_embeds, seq_pos=seq_pos, verbose=verbose).values.ravel()
+            if type(effect_region_cols)!=type(None):
+                effect_region = effect_regions[i]
 
-            multivariant_effects[i,:] = variant_effects
+            variant_effects_df = self.infer_effects(chr_, pos, ref, alt,
+                                                 # This way don't need to re-compute the celltype-assay combinations
+                                                 # each time.
+                                                 celltypes, assays,
+                                                 #imputed_celltypes, imputed_assays, all_combinations=False,
+                                                 index_base=index_base,
+                                                 batch_size=batch_size, batch_by=batch_by,
+                                                 seq_pos=seq_pos, effect_region=effect_region,
+                                                 all_combinations=all_combinations,
+                                                 verbose=verbose)
+            variant_effects_flat = variant_effects_df.values.ravel()
+
+            # For debugging during developement, checked and the ravelling functioning correctly.
+            # for i, (celltype, assay) in enumerate(imputed_celltype_assays):
+            #     if variant_effects_flat[i] != variant_effects_df.loc[celltype, assay]:
+            #         raise Exception("ORDER WRONG!")
+
+            multivariant_effects[i, :] = variant_effects_flat
             var_names.append( f"{chr_}_{pos}_{ref}_{alt}" )
 
             if verbose and i % math.ceil(min([100, 0.1*vcf_df.shape[0]])) == 0:
@@ -1077,7 +662,11 @@ class DNACipher():
             print(f"PROCESSED {vcf_df.shape[0]}/{vcf_df.shape[0]} variants.", file=log_file, flush=True)
 
         multivariant_effects = pd.DataFrame(multivariant_effects,
-                                            index=var_names, columns=self.imputable_celltype_assays)
+                                            # Decided not to include the var names, but rather try to keep it in-line
+                                            # with the input var_df, because the user could input the same variant
+                                            # BUT measure the effect using different locations (e.g. exon 1 or exon 2)
+                                            #index=var_names,
+                                            columns=imputed_celltype_assays_str)
         return multivariant_effects
 
     @staticmethod
@@ -1119,209 +708,131 @@ class DNACipher():
 
         return pred_effects_ordered
 
-    ####################################################################################################################
-                # Functions from here are for inferring variant differences using the deep embeddings only #
-    ####################################################################################################################
-    def infer_effects_embeds(self, chr_, pos, ref, alt, embed_layer, index_base=0, batch_size=200,
-                      batch_axis = 0 #Refers to batch by sequence. Think might be more memory efficient to batch by celltype,assay..
-                     ):
-        """ Infers effects across all celltype, assays.
+    @staticmethod
+    def normalise_and_ordered_signals(ref_signals, alt_signals,
+                                    ):
+        """ Performs a normalisation for the predicted effects, by scaling the predictions by the maximum observed signal
+            for the reference locus.
+
+        Parameters
+        ----------
+        ref_signals: pd.DataFrame
+            Rows are the genome bins, columns are the experiments, and values are the predicted signals.
+        alt_signals: float
+            Rows are the genome bins, columns are the experiments, and values are the predicted signals.
+
+        Returns
+        --------
+        ref_signals_normed: pd.DataFrame
+            Same as ref_signals, but values are normalised within each assay.
+        alt_signals_normed: pd.DataFrame
+            Same as alt_signals, but values are normalised within each assay.
         """
+        if not np.all(ref_signals.index.values == alt_signals.index.values) or \
+           not np.all(ref_signals.columns.values == alt_signals.columns.values):
+            raise Exception("Inputted ref_signals and alt_signals are not aligned.")
 
-        ref_features, alt_features, ref_seq, alt_seq = self.get_variant_embeds(chr_, pos, ref, alt, index_base,
-                                                                               transpose=False)
-        ref_features = torch.tensor(ref_features, device=self.device, dtype=torch.float32)
-        alt_features = torch.tensor(alt_features, device=self.device, dtype=torch.float32)
-        ref_features = ref_features.transpose(0, 1)  # .view(ref_features.shape[1], ref_features.shape[0])
-        alt_features = alt_features.transpose(0, 1)  # .view(alt_features.shape[1], alt_features.shape[0])
+        ref_maxs = ref_signals.values.max(axis=0)
+        ref_signals_normed = np.apply_along_axis(np.divide, 1, ref_signals, ref_maxs)
+        alt_signals_normed = np.apply_along_axis(np.divide, 1, alt_signals, ref_maxs)
 
-        torch.cuda.empty_cache()
+        exper_order = np.argsort( -ref_signals.values.mean(axis=0) )
 
-        with torch.no_grad():
-            ##### Need to construct for multi-input...
-            celltype_indices = list(range(len(self.celltypes)))
-            assay_indices = list(range(len(self.assays)))
-            celltype_index_combs = []
-            assay_index_combs = []
-            for ct_index in celltype_indices:
-                for assay_index in assay_indices:
-                    celltype_index_combs.append( ct_index )
-                    assay_index_combs.append( assay_index )
+        rna_seq = ['RNA-seq' in assay for assay in ref_signals.columns]
+        ref_signals_normed[:, rna_seq] = ref_signals_normed[:, rna_seq]**2
+        alt_signals_normed[:, rna_seq] = alt_signals_normed[:, rna_seq]**2
 
-            # Strategy here repeats each of the sequence region values (as shallow script) ncelltype_input times in a row
-            # before then repeating the next set of sequence features, and so on.
-            # NOTE the .reshape results in deep copy....
-            n_combs = len(celltype_index_combs)  # The number of combinations we need to expand up to!
-            ref_input = ref_features
-            alt_input = alt_features
+        ref_signals_normed = pd.DataFrame(ref_signals_normed,
+                                                     index=ref_signals.index.values, columns=ref_signals.columns.values)
+        alt_signals_normed = pd.DataFrame(alt_signals_normed,
+                                          index=ref_signals.index.values, columns=ref_signals.columns.values)
 
-            celltype_index_input = torch.tensor(celltype_index_combs, device=self.device).unsqueeze(0).expand(
-                                                                                            ref_input.size(0), -1
-                                                                                        )
-            assay_index_input = torch.tensor(assay_index_combs, device=self.device).unsqueeze(0).expand(
-                                                                                            ref_input.size(0), -1
-                                                                                        )
+        ref_signals_normed_and_ordered = ref_signals_normed.iloc[:,exper_order].copy()
+        alt_signals_normed_and_ordered = alt_signals_normed.iloc[:,exper_order].copy()
 
-            #### Checking to make sure the celltype,assays being repeated correctly.
-            #print(celltype_index_input[0:n_combs+10], assay_index_input[0:n_combs+10])
-            #### Will do in batches to get it to scale !
-            if batch_axis not in [0, 1]:
-                raise Exception(f"Invalid batch axis: {batch_axis}.")
+        return ref_signals_normed_and_ordered, alt_signals_normed_and_ordered
 
-            ##### Batches are in terms of tokens, i.e. batch size of 10 will run 10 tokens through the model at a time.
-            total = ref_input.shape[0] if batch_axis==0 else n_combs
-            batch_size = min([batch_size, total])
-            n_batches = math.ceil( total / batch_size )
+    @staticmethod
+    def get_diff_signals(ref_signals_normed, alt_signals_normed, keep_rna_squared=False):
+        """ Performs a normalisation for the predicted effects, by scaling the predictions by the maximum observed signal
+            for the reference locus.
 
-            # Getting positional embeddings for each if using dnacv5
-            if self.dnacv == 'dnacv5':
-                positional_indices = self.model_.get_positional_indices(chr_, pos, nreps=batch_size)
+        Parameters
+        ----------
+        ref_signals_normed: pd.DataFrame
+            Rows are the genome bins, columns are the experiments, and values are the normalised predicted signals.
+        alt_signals_normed: float
+            Rows are the genome bins, columns are the experiments, and values are the normalised predicted signals.
+        keep_rna_squared: bool
+            True to keep the RNA assays squared (which was performed during normalization) or take the sqrt to convert back.
 
-            starti = 0
-            dot_sum_by_batch = []
-            for batchi in range(n_batches):
-                endi = min([starti+batch_size, total])
-                batchi_size = endi-starti
-
-                if batch_axis == 0: # Batching either by sequence or celltype/assay
-                    celltype_index_batchi = celltype_index_input[starti:endi]
-                    assay_index_batchi = assay_index_input[starti:endi]
-                    ref_input_batchi = ref_input[starti:endi]
-                    alt_input_batchi = alt_input[starti:endi]
-                    pred_rows, pred_cols = batchi_size, n_combs
-
-                else:
-                    celltype_index_batchi = celltype_index_input[:, starti:endi]
-                    assay_index_batchi = assay_index_input[:, starti:endi]
-                    ref_input_batchi = ref_input
-                    alt_input_batchi = alt_input
-                    pred_rows, pred_cols = ref_input.shape[0], batchi_size
-
-                torch.cuda.empty_cache()
-                #### dnacv5
-                if self.dnacv == 'dnacv5':
-                    # Need to update the positional indices if the batchi_size changes...
-                    if batchi_size != batch_size:
-                        positional_indices = self.model_.get_positional_indices(chr_, pos, nreps=batchi_size)
-
-                    ref_output = self.model_.forward_embedding(celltype_index_batchi, assay_index_batchi,
-                                                               ref_input_batchi, embed_layer, *positional_indices)
-                    alt_output = self.model_.forward_embedding(celltype_index_batchi, assay_index_batchi,
-                                                               alt_input_batchi, embed_layer, *positional_indices)
-                else:
-                    ref_output = self.model_(celltype_index_batchi, assay_index_batchi, ref_input_batchi, embed_layer)
-                    alt_output = self.model_(celltype_index_batchi, assay_index_batchi, alt_input_batchi, embed_layer)
-
-                torch.cuda.empty_cache()
-
-                # Reshaping to get the celltype/assays specific sequence features #
-                ref_preds = ref_output.unsqueeze(1).view(pred_rows, pred_cols, self.n_nodes)
-                alt_preds = alt_output.unsqueeze(1).view(pred_rows, pred_cols, self.n_nodes)
-
-                # Getting the dot-product across the features, as measurement of difference!
-                #x = (ref_preds * alt_preds).sum(axis=2)
-                #print(x.std(dim=0), x.std(dim=1))
-
-                ##### Using the dot-product to determine the difference between the two, similar to NT!
-                dot_sums = (ref_preds * alt_preds).sum(axis=2)
-
-                dot_sum_by_batch.append( dot_sums )
-
-                starti = endi
-
-            # Summing the dot-products across the DNACipher embeddings, to get per celltype-assay dot-products across
-            # DNACipher latent embeddings AND tokens.
-            global_dots = torch.concat(dot_sum_by_batch)
-            global_dot_sums = global_dots.sum(dim=0)
-
-            #### Stratifying differences to celltype, assays.
-            stratified_result = np.zeros((len(self.celltypes), len(self.assays)), dtype=np.float32)
-            stratified_result[celltype_index_combs, assay_index_combs] = global_dot_sums.cpu().numpy()
-            stratified_result = pd.DataFrame(stratified_result, index=self.celltypes, columns=self.assays)
-
-        return stratified_result
-
-    def infer_multivariant_embedding_effects(self, vcf_df, embed_layer, index_base=0, #variant position are based on 0- or 1- base indexing.
-                                   verbose=True, log_file=sys.stdout, batch_size=200, batch_axis=0):
-        """Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per
-            variant, and predicted effect sizes across the columns for all celltype/assay combinations.
+        Returns
+        --------
+        get_diff_signals: pd.DataFrame
+            Difference between alt - ref across the sequence.
         """
-        if embed_layer >= self.n_layers:
-            raise Exception(f'Contrast embed layer specified as {embed_layer}, but only {self.n_layers} embeddings.')
+        index = ref_signals_normed.index.values
+        cols = ref_signals_normed.columns.values
+        if not np.all(alt_signals_normed.index.values == index) or \
+                    not np.all(alt_signals_normed.columns.values == cols):
+            raise Exception("ref_signals_normed and alt_signals_normed are not aligned. i.e. rows and columns not same.")
 
-        multivariant_effects = np.zeros((vcf_df.shape[0], self.n_imputable_celltype_assays),
-                                        dtype=np.float32)
-        var_names = []
-        for i in range(vcf_df.shape[0]):
+        ref_signals = ref_signals_normed.values.copy()
+        alt_signals = alt_signals_normed.values.copy()
+        rna_assays = ['RNA' in assay_ for assay_ in cols]
+        if not keep_rna_squared:
+            ref_signals[:, rna_assays] = np.sqrt( ref_signals[:, rna_assays] )
+            alt_signals[:, rna_assays] = np.sqrt(alt_signals[:, rna_assays])
 
-            chr_, pos, ref, alt = vcf_df.values[i, 0:4]
-            variant_effects = self.infer_effects_embeds(chr_, pos, ref, alt, embed_layer, index_base,
-                                                 batch_size=batch_size, batch_axis=batch_axis).values.ravel()
+        diff_signals = pd.DataFrame(alt_signals - ref_signals,
+                                    index=list(ref_signals_normed.index),
+                                    columns=list(ref_signals_normed.columns)
+                                    )
+        return diff_signals
 
-            multivariant_effects[i,:] = variant_effects
-            var_names.append( f"{chr_}_{pos}_{ref}_{alt}" )
+    @staticmethod
+    def load_intersecting_annots(pred_signals_or_range, gtf_or_bed_file, gtf=True):
 
-            if verbose and i % math.ceil(min([100, 0.1*vcf_df.shape[0]])) == 0:
-                print(f"PROCESSED {i}/{vcf_df.shape[0]} variants.", file=log_file, flush=True)
+        if type(pred_signals_or_range) == pd.core.frame.DataFrame:
 
-        if verbose:
-            print(f"PROCESSED {vcf_df.shape[0]}/{vcf_df.shape[0]} variants.", file=log_file, flush=True)
+            chrom, start, bin_end = pred_signals_or_range.index.values[0].split('_')
+            _, _, end = pred_signals_or_range.index.values[-1].split('_')
+            start, end = int(start), int(end)
 
-        multivariant_effects = pd.DataFrame(multivariant_effects, index=var_names,
-                                            columns = [f'{ct_assay}---embed-layer-{embed_layer}'
-                                                       for ct_assay in self.imputable_celltype_assays])
-        return multivariant_effects
+        else:
+            # Assumes the input is a range in from of (chrom, start, end)
+            chrom, start, end = pred_signals_or_range
 
-    ####################################################################################################################
-      # Functions from here are for inferring variant differences using the Nucleotide Transformer embeddings only #
-    ####################################################################################################################
-    def infer_NT_embedding_effects(self, chr_, pos, ref, alt, index_base=0,
-                      batch_axis = 0 #Refers to batch by sequence. Think might be more memory efficient to batch by celltype,assay..
-                     ):
-        """ Infers effects across Nucleotide Transformer sequence features, has not celltype,assay info.
-        """
-        # Pulling out the variant embeddings.
-        ref_features, alt_features, ref_seq, alt_seq = self.get_variant_embeds(chr_, pos, ref, alt, index_base,
-                                                                               transpose=False, full_embeds=True)
+        # Convert query region to a BEDTools interval
+        query_region = pybedtools.BedTool(f"{chrom}\t{start}\t{end}", from_string=True)
 
-        # Using the best performing approach for predicting eQTLs from the Nucleotide Transformer, with the
-        # caveat I will not use average embeddings, but instead take the dot product across the tokens for each feature,
-        # to generate a distance in terms of each 1280 features between the two embeddings.
-        # Then will use this information to benchmark NT embedding feature performance for causal variant
-        # prioritisation.
-        # Just a place holder for development.
-        variant_embedding_effects = np.zeros(1280, dtype=float)
+        # Load BED file as a BEDTools object
+        bed_or_gtf = pybedtools.BedTool( gtf_or_bed_file )
 
-        return variant_embedding_effects
+        # Find overlaps
+        overlapping_features = bed_or_gtf.intersect(query_region, wa=True)
 
-    def infer_multivariant_NT_embedding_effects(self, vcf_df, index_base=0,
-                                   verbose=True, log_file=sys.stdout, batch_size=200, batch_axis=0):
-        """Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per
-            variant, and predicted effect sizes across the columns for all celltype/assay combinations.
-        """
-        multivariant_effects = np.zeros((vcf_df.shape[0], self.model_.n_token_features), dtype=np.float32)
-        var_names = []
-        for i in range(vcf_df.shape[0]):
+        # Convert back to pandas DataFrame
+        df = pd.read_csv(overlapping_features.fn, sep="\t", header=None)
 
-            chr_, pos, ref, alt = vcf_df.values[i, 0:4]
-            variant_embedding_effects = self.infer_NT_embedding_effects(chr_, pos, ref, alt, index_base,
-                                                 batch_size=batch_size, batch_axis=batch_axis).values.ravel()
+        region_start_col, region_end_col = 1, 2
+        if gtf:
+            df['gene_names'] = df.apply(lambda x: x.iloc[8].split('gene_name')[1].split('; ')[0].strip(' "'), 1)
+            df['gene_ids'] = df.apply(lambda x: x.iloc[8].split('gene_id')[1].split('; ')[0].strip(' "'), 1)
 
-            multivariant_effects[i, :] = variant_embedding_effects
-            var_names.append(f"{chr_}_{pos}_{ref}_{alt}")
+            region_start_col, region_end_col = 3, 4
 
-            if verbose and i % math.ceil(min([100, 0.1 * vcf_df.shape[0]])) == 0:
-                print(f"PROCESSED {i}/{vcf_df.shape[0]} variants.", file=log_file, flush=True)
+        if type(pred_signals_or_range) == pd.core.frame.DataFrame:
+            bin_starts = ((df.iloc[:, region_start_col].values - start) / (end - start)) * pred_signals_or_range.shape[0] # Scaled by total
+            bin_starts[bin_starts < 0] = 0 # Won't plot the starts if not in range.
 
-        if verbose:
-            print(f"PROCESSED {vcf_df.shape[0]}/{vcf_df.shape[0]} variants.", file=log_file, flush=True)
+            bin_ends = ((df.iloc[:, region_end_col].values - start) / (end - start)) * pred_signals_or_range.shape[0] # Scaled by total
+            bin_ends[bin_ends > pred_signals_or_range.shape[0]] = pred_signals_or_range.shape[0]  # Won't plot the ends if not in range.
 
-        # Naming the columns (NT model, layer, feature details) and rows (variants)
-        multivariant_effects = pd.DataFrame(multivariant_effects,
-                                            index=var_names,
-                         columns=[f'NT_feature-{k}_layer-{self.transformer_layer}_model-{self.transformer_model_name}'
-                                  for k in self.model_.n_token_features])
-        return multivariant_effects
+            df['bin_start'] = bin_starts # Fraction along the output sequence..
+            df['bin_end'] = bin_ends
+
+        return df
 
 class FastaStringExtractor:
     """ Helper class for extracting sequences.
@@ -1349,23 +860,3 @@ class FastaStringExtractor:
 
     def close(self):
         return self.fasta.close()
-
-"""Junk code
-
-            if expand:  #### EXPAND strategy
-
-                ref_input = ref_features.unsqueeze(1).expand(-1, n_combs, -1).reshape(-1, ref_features.size(1))
-                alt_input = alt_features.unsqueeze(1).expand(-1, n_combs, -1).reshape(-1, ref_features.size(1))
-
-                nseq_combs = ref_input.shape[0]
-                celltype_index_input = torch.tensor(celltype_index_combs, device=self.device).unsqueeze(0).expand(
-                                                                                                ref_features.size(0), -1
-                                                                                                   ).reshape(nseq_combs)
-                assay_index_input = torch.tensor(assay_index_combs, device=self.device).unsqueeze(0).expand(
-                                                                                                ref_features.size(0), -1
-                                                                                                   ).reshape(nseq_combs)
-
-
-"""
-
-

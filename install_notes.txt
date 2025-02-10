@@ -18,5 +18,7 @@ mamba install pytorch-lightning
 
 pip install enformer-pytorch
 
+pip install pybedtools
+
 
 

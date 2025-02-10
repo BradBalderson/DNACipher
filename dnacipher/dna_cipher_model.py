@@ -176,82 +176,54 @@ class DNACipherModel( pl.LightningModule ):
         elif activation_function == 'relu':
             self.activation_function = F.relu
 
-    def forward(self, celltype_input, assay_input, genome_input, embed_layer=None):
+    def forward(self, celltype_input, # seq_pos * experiments (cell type indices specified)
+                assay_input, # seq_pos * experiments (assay indices specified)
+                genome_input, # seq_pos * seq_features
+                embed_layer=None # If you want to retrieve the latent model embedding at an internal layer
+                ):
         """ This assumes are providing input that refers to a FULL sequence/s.
             So need to reshape the input, so that it refers to PER token, and then reshapes back to per sequence info.
         """
 
-        matrix_output = True
         if len(genome_input.shape) == 1:  # Accounting for 1 input, so adding an extra dimension to have 1 row!
-            matrix_output = False
             genome_input = genome_input.unsqueeze(0)
 
         nseqs = genome_input.shape[0]  # Need to store this to reshape BACK to per sequence information!
-
-        if len(celltype_input.shape) == 1:
-            ncelltype_input = len(celltype_input)
-            total_input = ncelltype_input
-        else:
-            ncelltype_input = celltype_input.shape[1]
-            #### This is the total number of points we have inputted
-            total_input = celltype_input.shape[0] * celltype_input.shape[1]
+        ncelltype_input = celltype_input.shape[1] # meaning number of experiments
+        total_input = nseqs * ncelltype_input
 
         ##### Accounting for DENSE format input, where we have multiple celltype,assays being imputed for a given region
-        if ncelltype_input != nseqs:  # Indices loaded multiple celltype,assays per sequence...
+        #### Is a shallow copy, so can run matrix multipication without the extra memory cost !!!
+        # Strategy here repeats each of the sequence region values (as shallow script) ncelltype_input times in a row
+        # before then repeating the next set of sequence features, and so on.
+        # Essentially now getting matrices with shape experiments * seq_positions as input, and will re-shape later
+        genome_input_ = genome_input.unsqueeze(1).expand(-1, ncelltype_input, -1).reshape(-1, genome_input.size(1))
+        if genome_input_.shape[0] != total_input:
+            raise Exception("Shape problem!")
 
-            #### Is a shallow copy, so can run matrix multipication without the extra memory cost !!!
-            # Strategy here repeats each of the sequence region values (as shallow script) ncelltype_input times in a row
-            # before then repeating the next set of sequence features, and so on.
-            genome_input_ = genome_input.unsqueeze(1).expand(-1, ncelltype_input, -1).reshape(-1, genome_input.size(1))
-            if genome_input_.shape[0] != total_input:
-                raise Exception("Shape problem!")
+        celltype_input_ = celltype_input.ravel()  # Flattens this to point observations.
+        assay_input_ = assay_input.ravel()
 
-            if len(celltype_input.shape) > 1:  ### Will need to reshape this....
-                celltype_input_ = celltype_input.ravel()  # Flattens this to point observations.
-                assay_input_ = assay_input.ravel()
-            else:
-                celltype_input_ = celltype_input
-                assay_input_ = assay_input
+        return self.forward_flattened(celltype_input_, assay_input_, genome_input_, nseqs, embed_layer)
 
-            return self.forward(celltype_input_, assay_input_, genome_input_, embed_layer)
-
-            #### Using the expand function to replicate it, then can run normally...
-            # if len(celltype_input.shape)==1: # Making the correct shape..
-            #     celltype_input = celltype_input.unsqueeze(0)
-            #     assay_input = assay_input.unsqueeze(0)
-            #
-            # # Will enforce a 1D output, to enable compatability with downstream benchmarking.
-            # ys = [] #torch.zeros((celltype_input.shape[0]*celltype_input.shape[1]))
-            # for i in range(genome_input.shape[0]):
-            #     genome_i = genome_input[i:(i+1)]
-            #     for j in range(celltype_input.shape[1]):
-            #         celltype_inputij = celltype_input[i,j:(j+1)]
-            #         assay_inputij = assay_input[i,j:(j+1)]
-            #
-            #         ys.append( self.forward(celltype_inputij, assay_inputij, genome_i) )
-            #
-            # # A single vector of output, could be reshaped to original with y.view( celltype_input.shape )
-            # y = torch.cat( ys )
-            # return y
-
-        #### NEED to reformat the input to refer to each sequence, by averaging the features across tokens.
-        if genome_input.shape[1] != self.n_token_features:
-            seqfeatures_by_token = genome_input.view(genome_input.shape[0], self.n_tokens, self.n_token_features)
-            seqfeatures = seqfeatures_by_token.mean(axis=1)  # average features across tokens
-        else:  # Is input where the values are already averaged across tokens.
-            seqfeatures = genome_input
+    def forward_flattened(self,
+                celltype_input, # experiments (cell type indices specified)
+                assay_input, # experiments (assay indices specified)
+                genome_input, # experiments * seq_features
+                nseqs, # original number of sequence embeddings input, necessary to reshape the output
+                embed_layer):
 
         #### Embeddings for the cell type and assay information
-        celltype = self.celltype_embedding(celltype_input)
-        assay = self.assay_embedding(assay_input)
+        celltype = self.celltype_embedding( celltype_input )
+        assay = self.assay_embedding( assay_input )
 
         # Project the token features down.
-        seqfeatures = seqfeatures.to( celltype.dtype ) #self.genome_layer.dtype )
-        genome = self.genome_layer(seqfeatures)
+        genome_input = genome_input.to( celltype.dtype )
+        genome = self.genome_layer( genome_input )
         if self.dropout_genome_layer:  ### These are optional, since didn't implement in original version.
             genome = self.drop(genome)
         if self.relu_genome_layer:
-            genome = self.activation_function(genome)
+            genome = self.activation_function( genome )
 
         # Now creating the set of features which will go through the deeper layers to predict epigenetic signal
         if len(celltype_input.shape) == 0:  # Accounting for a single value provided as input !
@@ -271,10 +243,9 @@ class DNACipherModel( pl.LightningModule ):
 
         # Predicting epigenetic signal
         if type(embed_layer) == type(None):
-            y = self.output_layer(x).squeeze()
+            y = self.output_layer( x ).squeeze()
 
-            if matrix_output:  # NOW reshaping back to the epigenetic signals across each sequence
-                y = y.view(nseqs, 1)
+            y = y.view(nseqs, y.shape[0] // nseqs)
 
             if self.relu_output:
                 y = F.relu(y)
@@ -287,6 +258,7 @@ class DNACipherModel( pl.LightningModule ):
             y = x.squeeze()
 
         return y
+
 
     def get_genomic_embedding(self, genome_input):
         """ Assumes have full token features information from an input sequence/s
