@@ -1,3 +1,11 @@
+tutorials/data/*34012112-GCST90014023-EFO_0001359-Build38*
+tutorials/data/*selected_var_info.txt
+tutorials/data/*pred_effects.txt
+tutorials/data/*pred_effects.pvals.txt
+tutorials/data/*pred_effects.counts.txt
+tutorials/data/*.out
+tutorials/data/*.err
+tutorials/data/signal_*
 tutorials/data/GRCh38-cCREs.bed
 tutorials/data/gencode.v26.annotation.gtf
 tutorials/data/genome.fa

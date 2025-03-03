@@ -185,7 +185,7 @@ class DNACipher():
             _, embeddings = self.transformer_model(token_id.to(self.device), return_embeddings=True)
             return embeddings  # 896 X 3072, i.e. 128bp bins, with 3072 seq features, only one transformation to the signal values.
 
-    def get_seqs(self, chr_, pos, ref, alt, index_base=0, seq_pos=None):
+    def get_seqs(self, chr_, pos, ref, alt, index_base=0, seq_pos=None, correct_ref=False):
         """Gets and checks the reference sequence
 
         seq_pos: Specifies the position of the sequence, so that can make predictions that are not variant-centred.
@@ -219,8 +219,17 @@ class DNACipher():
         # ('TAA', 'T', 'ATTAGAG')
 
         if len(ref) == 1:  # Simple SNP.
-            if ref_seq[mut_start] != ref:
-                raise Exception(f"Ref was mean to have bp {ref} but got {ref_seq[mut_start]}.")
+            if ref_seq[mut_start] != ref and not correct_ref:
+                raise Exception(f"{chr_}:{pos}:{ref}:{alt} was meant to have bp {ref} " + \
+                                f"but got {ref_seq[mut_start]}. Check correct genome / coordinates. \n" +\
+                                f"If genome/coordinates are correct, the REF may be wrong due to lifting over \n" +\
+                                f"variant coordinates between genomes but NOT lifting over the actual variant sequence.\n" +\
+                                f"If this is the case, re-run with correct_ref=True, which will introduce the ref/alt base-pairs \n"+\
+                                f"regardless of what is found in the inputted reference genome.")
+            
+            ### Correcting the reference sequence if is incorrect bp as per user request via correct_ref input.
+            elif ref_seq[mut_start] != ref and correct_ref:
+                ref_seq = ref_seq[0:mut_start] + ref + ref_seq[mut_start + 1:]
 
             alt_seq = ref_seq[0:mut_start] + alt + ref_seq[mut_start + 1:]
 
@@ -228,8 +237,18 @@ class DNACipher():
             mutation_indices = list(range(mut_start, mut_start + len(ref)))
             ref_seq_split = np.array(list(ref_seq))
             ref_ = ''.join(ref_seq_split[mutation_indices])
-            if ref_ != ref:
-                raise Exception(f"Ref was mean to have bp {ref} but got {ref_}.")
+            if ref_ != ref and not correct_ref:
+                raise Exception(f"{chr_}:{pos}:{ref}:{alt} was meant to have bp {ref} " + \
+                                f"but got {ref_seq[mut_start]}. Check correct genome / coordinates. \n" +\
+                                f"If genome/coordinates are correct, the REF may be wrong due to lifting over \n" +\
+                                f"variant coordinates between genomes but NOT lifting over the actual variant sequence.\n" +\
+                                f"If this is the case, re-run with correct_ref=True, which will introduce the ref/alt base-pairs \n"+\
+                                f"regardless of what is found in the inputted reference genome.")
+            
+            ### Correcting the reference sequence if is incorrect bp as per user request via correct_ref input.
+            elif ref_ != ref and correct_ref:
+                ref_seq = ref_seq[0:mut_start] + ref + ref_seq[mut_start + len(ref):]
+            
             alt_seq = ref_seq[0:mut_start] + alt + ref_seq[mut_start + len(ref):]
 
         # I don't consider case where alternate is shorter, since gets average sequence features anyhow..
@@ -283,10 +302,13 @@ class DNACipher():
         print(f"All variants checked. Returning correct variants.", file=log_file, flush=True)
         return vcf_df.iloc[good_indices, :]
 
-    def get_variant_embeds(self, chr_, pos, ref, alt, index_base=0, seq_pos=None):
+    def get_variant_embeds(self, chr_, pos, ref, alt, index_base=0, seq_pos=None, correct_ref=False):
         """ Gets the embeddings for the reference and alternative variant.
         """
-        ref_seq, alt_seq, seq_range = self.get_seqs(chr_, pos, ref, alt, index_base=index_base, seq_pos=seq_pos)
+        ref_seq, alt_seq, seq_range = self.get_seqs(chr_, pos, ref, alt, 
+                                                    index_base=index_base, 
+                                                    seq_pos=seq_pos,
+                                                    correct_ref=correct_ref)
 
         #### Extracting the features...
         # Checked how this worked for truncated alt from INDEL, and works fine.
@@ -309,7 +331,7 @@ class DNACipher():
         return ref_features, alt_features, ref_seq, alt_seq, seq_range, seq_bins
 
     def infer_effects(self, chr_, pos, ref, alt, celltypes, assays,
-                      index_base=0, seq_pos = None, effect_region = None,
+                      index_base=0, correct_ref=False, seq_pos = None, effect_region = None,
                       batch_size=None, batch_by = None,
                       all_combinations=True,
                       return_all = False,
@@ -333,6 +355,13 @@ class DNACipher():
             A single assay from within dnacipher.assays, or a list of such assays.
         index_base: int
             0 or 1, specifies the index-base of the inputted variation position (pos).
+        correct_ref: bool
+            If False, then if the inputted ref does not match the ref at the indicate genome coordinates,
+            will raise an error due to likely genome / position mis-specification. If True, this is by-passed by
+            always replacing the ref bp at the indicated position in the genome. This is useful for case where the
+            variant positions have been lifted over (e.g. hg19 -> hg38) but not he variant sequence (which might have
+            changed between genomes). In this case, simplest to just substitute the indicate ref and alt bases as 
+            indicated by the input. 
         seq_pos: int
             Specifies the position to centre the query sequence on, must be within dnacipher.seqlen_max in order to predict
             effect of the genetic variant. If None then will centre the query sequence on the inputted variant.
@@ -410,6 +439,7 @@ class DNACipher():
         # Getting the sequence embeddings input:
         ref_features, alt_features, ref_seq, alt_seq, seq_range, seq_bins = self.get_variant_embeds(chr_, pos, ref, alt,
                                                                                             index_base, seq_pos=seq_pos,
+                                                                                            correct_ref=correct_ref,
                                                                                )
 
         # Calculating the predicted effect for a particular part of the input sequence
@@ -564,7 +594,7 @@ class DNACipher():
             return stratified_result, ref_preds_df, alt_pred_df, ref_seq, alt_seq, ref_features_df, alt_features_df
 
     def infer_multivariant_effects(self, vcf_df, celltypes, assays,
-                                    index_base=0, seq_pos_col=None, effect_region_cols=None,
+                                    index_base=0, correct_ref=False, seq_pos_col=None, effect_region_cols=None,
                                     batch_size=900, batch_by=None, all_combinations=True,
                                     verbose=True, log_file=sys.stdout):
         """Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per
@@ -580,6 +610,13 @@ class DNACipher():
             A single assay from within dnacipher.assays, or a list of such assays.
         index_base: int
             0 or 1, specifies the index-base of the inputted variant position (pos).
+        correct_ref: bool
+            If False, then if the inputted ref does not match the ref at the indicate genome coordinates,
+            will raise an error due to likely genome / position mis-specification. If True, this is by-passed by
+            always replacing the ref bp at the indicated position in the genome. This is useful for case where the
+            variant positions have been lifted over (e.g. hg19 -> hg38) but not he variant sequence (which might have
+            changed between genomes). In this case, simplest to just substitute the indicate ref and alt bases as 
+            indicated by the input.
         batch_size: int
             The number of experiments or sequence embeddings to parse at a time through the model to predict signals. Lower if run into memory errors.
         batch_by: int
@@ -640,7 +677,7 @@ class DNACipher():
                                                  # each time.
                                                  celltypes, assays,
                                                  #imputed_celltypes, imputed_assays, all_combinations=False,
-                                                 index_base=index_base,
+                                                 index_base=index_base, correct_ref=correct_ref,
                                                  batch_size=batch_size, batch_by=batch_by,
                                                  seq_pos=seq_pos, effect_region=effect_region,
                                                  all_combinations=all_combinations,
