@@ -9,9 +9,9 @@ DNACipher
 -------
 ### The following tutorials are written in google collab, showing how to use the DNACipher Python interface.
 
-DNACipher inference of genetic variant effects:
-
+* Tutorial 1: DNACipher inference of genetic variant effects
 https://colab.research.google.com/gist/BradBalderson/c4389baa0d789314259b8479cfd35747/dnacipher_inference_local.ipynb
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dnacipher_tutorial1_figure.png" alt="DNACipher Tut1" width="600">
 
 DeepVariantImpactMapping (DVIM) with DNACipher to infer common and rare genetic variants with significant effect at GWAS loci:
 
