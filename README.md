@@ -5,7 +5,7 @@ DNACipher
 
 **DNACipher is a DNA sequence deep learning model that also includes cell type and assay information on the model input.**
 
- Tutorials
+ Tutorials - Python Interface
 -------
 ### The following tutorials are written in google collab, showing how to use the DNACipher Python interface.
 
@@ -17,6 +17,8 @@ https://colab.research.google.com/gist/BradBalderson/c4389baa0d789314259b8479cfd
 https://colab.research.google.com/drive/17GiWLt_SigpVa6hl6A9yP_edM4IcQeEy?usp=sharing
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dnacipher_DVIM_example.png" alt="DNACipher Tut2" width="1000">
 
+ Tutorials - Command-line Interface
+-------
 ### DNACipher DVIM command-line-interface
 
 In progress of implementing querying DNACipher and performing DVIM analysis using a command-line interface, so that R
