@@ -74,6 +74,16 @@ def call_significant_variant_effects(
                   )
             )
         ] = 1,
+    min_std: Annotated[
+        Optional[float],
+        typer.Option(
+            "-std",
+            "--min_std",
+            help=("Imposed minimum standard deviation of the background variant predicted effects, controls for very small effects being "+\
+                  "significant and also case where all 0s for background causing everything to be called significant."
+                  )
+            )
+        ] = 0.01,
     verbosity: Annotated[
             Optional[int],
             typer.Option(
@@ -114,6 +124,7 @@ def call_significant_variant_effects(
     
     total_ps = candidate_rare_abs_effects.shape[0] * candidate_rare_abs_effects.shape[1]
     
+    #### Decided I would separate the correction for the rare and common variants.
     adj_p = p_cutoff / total_ps # Bonferroni nominal p-value.
     critical_value = norm.ppf(1 - adj_p / 2) # Critical value for two-sided z-test.
     if verbosity >= 2: # Print boot-strap details if in debug verbosity.
@@ -128,13 +139,13 @@ def call_significant_variant_effects(
             # Boot-strapping the background variant effect for this particular celltype-assay effect prediction.
             boots = np.random.choice(bg_abs_effects[:, coli], replace=True, size=bg_abs_effects.shape[0])
             boot_mean = np.mean( boots ) # Mean background effect
-            boot_std = np.std( boots ) # Std effect
+            boot_std = np.max([np.std( boots ), min_std]) # Std effect, minimum set to avoid calling small effects & control for 0 bg edge-case
 
             # Z-score for candidate variants belonging to this distribution.
             candidate_rare_zs = (candidate_rare_abs_effects[:, coli] - boot_mean) / boot_std
 
             # Count the number of times each variant is considered non-signficant via z-test.
-            boot_counts[candidate_rare_indices, coli] += (candidate_rare_zs < critical_value).astype(int)
+            boot_counts[candidate_rare_indices, coli] += (candidate_rare_zs <= critical_value).astype(int)
             
             if verbosity >= 2 and (booti % math.ceil(n_boots*0.1))==0 and coli == 0: # Print col 0 boot strap details if debugging mode.
                 col_sum_boot_counts = sum( boot_counts[candidate_rare_indices, coli] )
