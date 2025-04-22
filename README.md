@@ -5,15 +5,24 @@ DNACipher
 
 **DNACipher is a DNA sequence deep learning model that also includes cell type and assay information on the model input.**
 
-Tutorial
+Tutorials
 -------
-Please see the google collab tutorial here:
+## The following tutorials are written in google collab, showing how to use the DNACipher Python interface.
+
+DNACipher inference of genetic variant effects:
 
 https://colab.research.google.com/gist/BradBalderson/c4389baa0d789314259b8479cfd35747/dnacipher_inference_local.ipynb
 
-To install and run locally, please see the tutorial here:
+DeepVariantImpactMapping (DVIM) with DNACipher to infer common and rare genetic variants with significant effect at GWAS loci:
 
-https://github.com/BradBalderson/DNACipher/blob/main/tutorials/DNACipher_inference_local.ipynb
+https://colab.research.google.com/drive/17GiWLt_SigpVa6hl6A9yP_edM4IcQeEy?usp=sharing
+
+# DNACipher DVIM command-line-interface
+
+In progress of implementing querying DNACipher and performing DVIM analysis using a command-line interface, so that R
+users and non-Python programmers can utilize the model and analysis.
+
+
 
     
 

@@ -290,7 +290,7 @@ gene_ids = gtf_df['gene_ids'].values
 
 # Getting the annotation locations of the eGenes associated with each eQTL.
 # egene_row_indices = [np.where(gene_ids==id_)[0][0] for id_ in var_df['GENE_ID']]
-# egenes_gtf = df.iloc[egene_row_indices, :]
+# egenes_gtf = gtf_df.iloc[egene_row_indices, :]
 #
 # var_df['egene_start'] = egenes_gtf[3].values
 # var_df['egene_end'] = egenes_gtf[4].values
