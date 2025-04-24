@@ -184,8 +184,9 @@ def call_significant_variant_effects(
     boot_counts_df.to_csv(output_counts_file, sep='\t')
     boot_pvals_df.to_csv(output_pvals_file, sep='\t')
     
-    print(f"Saved boot-strapped counts to: {output_counts_file}", file=sys.stdout, flush=True)
-    print(f"Saved adjusted p-values to: {output_pvals_file}", file=sys.stdout, flush=True)
+    if verbosity >= 1:
+        print(f"Saved boot-strapped counts to: {output_counts_file}", file=sys.stdout, flush=True)
+        print(f"Saved adjusted p-values to: {output_pvals_file}", file=sys.stdout, flush=True)
 
 def main():
     root_dir = Path(__file__).parent

@@ -201,6 +201,185 @@ def plot_annots(annots, style, y_offset_, y_step_, fig, ax, label_size, fontweig
             # fig_copy.show()
             # print("here")
 
+def plot_genes_in_region(genes, chrom, region_start, region_end, y_delta=0, size = 1, size2=1, size3=1):
+    """
+    Plots gene annotations (gene body + TSS) for all genes within a specified region,
+    using the matplotlib scripting interface.
+    
+    Parameters:
+        gtf_file (str): Path to the GTF file.
+        chrom (str): Chromosome name (e.g., "chr1").
+        region_start (int): Start coordinate of region (1-based).
+        region_end (int): End coordinate of region (1-based).
+    """
+    
+    genes = genes[
+        (genes['feature'] == 'gene') &
+        (genes['chrom'] == chrom) &
+        (genes['end'] >= region_start) &
+        (genes['start'] <= region_end)
+    ].copy()
+
+    # Extract gene names
+    genes['gene_name'] = genes['attribute'].str.extract('gene_name "([^"]+)"')
+
+    # Create plot
+    #plt.figure(figsize=(8, 2))
+    y_delta_original = y_delta
+    for _, row in genes.iterrows():
+        start = row['start']
+        end = row['end']
+        strand = row['strand']
+        gene_name = row['gene_name']
+        tss = start if strand == '+' else end
+
+        # Gene body line
+        plt.hlines(y=y_delta, xmin=start, xmax=end, color='black', linewidth=2)
+
+        # TSS tick mark (short vertical line)
+        arrow_start_y = (y_delta+0.1)*size
+        plt.vlines(x=tss, ymin=y_delta, ymax=arrow_start_y, color='k', linewidth=1)
+
+        # TSS arrow indicating transcription direction
+        arrow_dx = 1000 if strand == '+' else -1000
+        arrow_start_x = tss
+        plt.arrow(
+            arrow_start_x, arrow_start_y,
+            arrow_dx*size2, 0,
+            head_width=0.05*size3, head_length=400*size2,
+            fc='k', ec='k', linewidth=0.5*size, length_includes_head=True
+        )
+
+        # Gene label
+        plt.text(tss, arrow_start_y+(.01*y_delta_original), gene_name, ha='center', fontsize=8)
+        
+        y_delta += (y_delta*.05)
+            
+def plot_variant_stats(locus_gwas_stats, y_axis_col, color_by, color_dict=None, color_map='magma', 
+                       var_chrom_col='chromosome', var_loc_col='base_pair_location',
+                      alpha=.5, order_points=True, reverse_order=False, gtf_df=None, show_legend=True):
+    """ Manhattan-like plot of variant information.
+    
+    Parameters
+    ----------
+    signal_gwas_stats: pd.DataFrame
+        GWAS summary statistics for each of the variants at the GWAS locus, within range model predictions.
+    y_axis_col: str
+        Column in signal_gwas_stats referring to int or float statistics to plot for each variant.
+    color_by: str
+        Column in signal_gwas_stats to color each variant by.
+    color_dict: dict
+        Only relevant if color_by refers to discrete annotations of the variants. Keys are the variant categories, values are color names.
+    color_map: str
+        If color_by is int or float or color_dict=None, then will use this to determine point colors.
+    alpha: float
+        Opacity of the points.
+    order_points: bool
+        Whether to plot the points in an ordered way, most to least frequent label, largest to smallest stat, for example.
+    reverse_order: bool
+        Reverse default orderering of the points.
+    gtf_df: pd.DataFrame
+        DataFrame of a gtf file, if provided will plot the genes that intersect the region.
+    show_legend: bool
+        Whether to show a color legend or not.
+    """
+    
+    # Input checking
+    if y_axis_col not in locus_gwas_stats.columns:
+        raise Exception(f'{y_axis_col} not in available columns: {list(locus_gwas_stats.columns)}')
+        
+    elif type(locus_gwas_stats[y_axis_col].values[0]) not in [float, int, np.float64, np.int64]:
+        
+        raise Exception(f'{y_axis_col} refers to non float or int data: {locus_gwas_stats[y_axis_col]}')
+    
+    if color_by not in locus_gwas_stats.columns:
+        raise Exception(f'{color_by} not in available columns: {list(locus_gwas_stats.columns)}')
+
+    # Setting the colors if not set
+    is_discrete_colors = type(locus_gwas_stats[color_by].values[0])==str
+    if type(color_dict)==type(None) and is_discrete_colors:
+        color_dict = get_colors(locus_gwas_stats[color_by].values, color_map=color_map)
+    
+    color_stats = locus_gwas_stats[color_by].values
+    if type(color_dict) != type(None) and is_discrete_colors:
+        point_colors = [color_dict[color_stat] for color_stat in color_stats]
+    else:
+        point_colors = color_stats # Color by the continuous stats.
+    
+    # Plotting discrete variant labels.
+    if is_discrete_colors:
+        
+        labels = locus_gwas_stats[color_by].values
+        label_set = np.unique(labels)
+        
+        if order_points:
+            label_counts = np.array([len(np.where(labels==label_)[0]) for label_ in label_set])
+            label_set = label_set[np.argsort(-label_counts)]
+            if reverse_order:
+                label_set = label_set[::-1]
+        
+        for label_ in label_set:
+            plt.scatter(locus_gwas_stats[ var_loc_col ].values[labels==label_], 
+                        locus_gwas_stats[y_axis_col].values[labels==label_],
+                        c=color_dict[label_], alpha=alpha, label=label_)
+        
+        if show_legend:
+            plt.legend(loc='upper left', #bbox_to_anchor=(1, 0.5), 
+                       fontsize=8)
+            
+    else:
+        
+        values_ = locus_gwas_stats[color_by].values
+        if order_points:
+            index_order = np.argsort(values_)
+            if reverse_order:
+                index_order = index_order[::-1]
+                
+        else:
+            index_order = list(range(len(values_)))
+            
+        sc = plt.scatter(locus_gwas_stats[ var_loc_col ].values[index_order], 
+                         locus_gwas_stats[ y_axis_col ].values[index_order],
+                        c=values_[index_order], alpha=alpha, cmap=color_map)
+        if show_legend:
+            plt.colorbar(sc, label=color_by)
+        
+    ylims = plt.ylim()
+    midpoint = np.mean(ylims)
+    
+    xlims = plt.xlim()
+    
+    chromosome = locus_gwas_stats[ var_chrom_col ].values[0]
+    if type(gtf_df) != type(None):
+        chromosome = f"chr{ str(chromosome).strip('chr').strip('chromosome') }"
+        plot_genes_in_region(gtf_df, chromosome, xlims[0], xlims[1], y_delta=midpoint)
+
+    plt.ylabel( y_axis_col )
+    plt.xlabel( chromosome )
+    
+def plot_volcano(plot_label, selected_gwas_stats, sig_effects, foldchange_effects, boot_pvals_df,
+                down_color='dodgerblue', up_color='tomato', nonsig_color='grey', alpha=.4, show=True):
+    """ Volcano plot of significant effects.
+    """ 
+    
+    plot_bool = selected_gwas_stats['var_label'].values == plot_label
+
+    foldchange_flat = foldchange_effects.values[plot_bool,:].ravel()
+    signal_ps_flat = -np.log10( boot_pvals_df.values[plot_bool,:].ravel() )
+    sig_bool_flat = sig_effects.values[plot_bool,:].ravel()
+
+    up_bool = np.logical_and(sig_bool_flat, foldchange_flat > 0)
+    down_bool = np.logical_and(sig_bool_flat, foldchange_flat < 0)
+
+    plt.title(f"{plot_label} variants significant effects")
+    plt.scatter(foldchange_flat[~sig_bool_flat], signal_ps_flat[~sig_bool_flat], color=nonsig_color, alpha=alpha)
+    plt.scatter(foldchange_flat[down_bool], signal_ps_flat[down_bool], color=down_color, alpha=alpha)
+    plt.scatter(foldchange_flat[up_bool], signal_ps_flat[up_bool], color=up_color, alpha=alpha)
+    plt.xlabel('fold-change')
+    plt.ylabel('-log10(p_val)')
+    if show:
+        plt.show()
+    
 
 def get_text_height(ax, text, fontsize):
     """Estimate text width in data coordinates."""
