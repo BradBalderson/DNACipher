@@ -541,7 +541,7 @@ class DNACipher():
 
                 starti = endi
 
-                if verbose:
+                if verbose and i % math.ceil(min([100, 0.1*n_batches])) == 0:
                     print(f"Finished inference for batch {batchi+1} / {n_batches} in {round((time.time()-start_)/60, 3)}mins")
 
             ref_preds = torch.concat(ref_batch_preds, dim=batch_axis)
