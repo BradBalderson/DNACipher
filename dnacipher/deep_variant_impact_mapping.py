@@ -130,12 +130,11 @@ def stratify_variants(signal_gwas_stats,
     selected_gwas_stats = pd.concat([candidate_gwas_stats, rare_gwas_stats, lowsig_gwas_stats, other_gwas_stats], ignore_index=True)
     
     if verbose:
-        print(f"Total selected varaints {selected_gwas_stats.shape[0]} / {signal_gwas_stats.shape[0]}")
+        print('No. other variants:', other_gwas_stats.shape[0])
+        print(f"Total selected varaints {sum(selected_gwas_stats['var_label'].values!='other')} / {signal_gwas_stats.shape[0]}")
         print('\tNo. candidate variants:', candidate_gwas_stats.shape[0])
         print('\tNo. rare variants:', rare_gwas_stats.shape[0])
-        print('\tNo. background variants:', lowsig_gwas_stats.shape[0], '\n')
-        print('\tNo. other variants:', other_gwas_stats.shape[0], '\n')
-
+        print('\tNo. background variants:', lowsig_gwas_stats.shape[0])
 
     return selected_gwas_stats
 
