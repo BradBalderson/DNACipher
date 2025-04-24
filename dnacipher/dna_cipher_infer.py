@@ -663,6 +663,7 @@ class DNACipher():
 
         multivariant_effects = np.zeros((vcf_df.shape[0], len(imputed_celltype_assays)), dtype=np.float32)
         var_names = []
+        start_ = time.time()
         for i in range(vcf_df.shape[0]):
 
             chr_, pos, ref, alt = vcf_df.values[i, 0:4]
@@ -681,7 +682,7 @@ class DNACipher():
                                                  batch_size=batch_size, batch_by=batch_by,
                                                  seq_pos=seq_pos, effect_region=effect_region,
                                                  all_combinations=all_combinations,
-                                                 verbose=verbose)
+                                                 verbose=False)
             variant_effects_flat = variant_effects_df.values.ravel()
 
             # For debugging during developement, checked and the ravelling functioning correctly.
@@ -693,7 +694,7 @@ class DNACipher():
             var_names.append( f"{chr_}_{pos}_{ref}_{alt}" )
 
             if verbose and i % math.ceil(min([100, 0.1*vcf_df.shape[0]])) == 0:
-                print(f"PROCESSED {i}/{vcf_df.shape[0]} variants.", file=log_file, flush=True)
+                print(f"PROCESSED {i}/{vcf_df.shape[0]} variants in {round((time.time()-start_)/60, 3)}mins", file=log_file, flush=True)
 
         if verbose:
             print(f"PROCESSED {vcf_df.shape[0]}/{vcf_df.shape[0]} variants.", file=log_file, flush=True)
