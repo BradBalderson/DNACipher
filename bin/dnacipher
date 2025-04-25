@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+import sys
+
+if sys.version_info.major <= 2:
+    raise ValueError( "DNACipher requires python version 3 or higher" )
+
+import dnacipher.main as main
+
+main.main()

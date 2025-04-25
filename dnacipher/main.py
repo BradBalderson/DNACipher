@@ -43,6 +43,8 @@ def infer_effects(
     return_all: Annotated[bool, typer.Option("-return_all/-no-return_all", help="Return the signals across the ref and alt sequences")] = False,
     verbose: Annotated[bool, typer.Option("-verbose/-quiet", help="Enable or disable verbose output")] = True
                  ):
+    """ Infers a single varaints effects across celltypes and assays, and optionally across the sequence.
+    """
 
     dnacipher, celltypes, assays = clh.parse_general_input(celltypes, assays, device, fasta_file_path, verbose)
     
@@ -111,10 +113,11 @@ def infer_multivariant_effects(
     all_combinations: Annotated[bool, typer.Option("-all_combinations/-no-all_combinations", help="Generate predicetions for all combinations of inputted cell types and assays.")] = True,
     verbose: Annotated[bool, typer.Option("-verbose/-quiet", help="Enable or disable verbose output")] = True
      ):
-
-    """ TODO: 
-        * Should implement outputting the positional information as well, so could parameterize moleculear effects as (pos, celltype, assay)
+    """ Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per
+            variant, and predicted effect sizes across the columns for all celltype/assay combinations.
     """
+    # TODO: 
+    #     * Should implement outputting the positional information as well, so could parameterize moleculear effects as (pos, celltype, assay)
 
     dnacipher, celltypes, assays = clh.parse_general_input(celltypes, assays, device, fasta_file_path, verbose)
 
@@ -153,6 +156,11 @@ def stratify_variants(
     min_bg_variants: Annotated[Optional[int], typer.Option( "-mbv", "-min_bg_variants", help=( "If have less than this number of background variants, will rank-order potential background variants by scoring allele frequency and significance, and take this many variants as significant.") )] = 100,
     verbose: Annotated[bool, typer.Option("-verbose/-quiet", help="Enable or disable verbose output")] = True
 ):
+    """ Performs stratification of variants at GWAS loci to categories: 
+        * 'candidate' variants (common significant variants), 
+        * 'rare' variants (non-significant rare variants in the same region as the candidate variants), 
+        * 'background' variants (common non-significant variants), and 'other' variants (rare variants outside of the hit locus).
+    """
     
     signal_gwas_stats = pd.read_csv(signal_gwas_stats_path, sep='\t')
 
@@ -178,6 +186,8 @@ pred_effects_path: Annotated[str, typer.Argument(help="Path to predicted effects
     min_std: Annotated[Optional[float], typer.Option( "-std", "-min_std", help=( " Minimum standard deviation for the background variant effects. Set to avoid 0 std for 0 effects of background variants causing infinite z-scores.") )] = 0.01,
     verbosity: Annotated[Optional[int], typer.Option( "-v", "-verbosity", help=( "Verbosity levels. 0 errors only, 1 prints processing progress, 2 prints debugging information.") )] = 1,
 ):
+    """ Calculates variant effect p-values for non-background variants against background variants.
+    """
 
     selected_gwas_stats = pd.read_csv(selected_gwas_stats_path, sep='\t')
     selected_pred_effects = pd.read_csv(pred_effects_path, sep='\t')
@@ -208,6 +218,8 @@ boot_pvals_path: Annotated[str, typer.Argument(help="Path to predicted effects f
     fc_cutoff: Annotated[Optional[float], typer.Option( "-fc", "-fc_cutoff", help=( "Fold-change cutoff to be considered significant.") )] = 0,
     verbose: Annotated[bool, typer.Option("-verbose/-quiet", help="Enable or disable verbose output")] = True
 ):
+    """ Calls 'impact' variants - variants with significant predicted effects in particular cell types / assays compared with background variants.
+    """
 
     selected_gwas_stats = pd.read_csv(selected_gwas_stats_path, sep='\t')
     selected_pred_effects = pd.read_csv(pred_effects_path, sep='\t')
@@ -289,11 +301,12 @@ def plot_signals(
     if verbose:
         print(f"Wrote {out_path}", file=sys.stdout, flush=True)
 
-@app.command()
-def plot_effects_matrix(
+# @app.command()
+# def plot_effects_matrix(
 
-):
-    print("NOT YET IMPLEMENTED", file=sys.stdout, flush=True)
+# ):
+#     """TODO: Plots DNACipher variant effect predictions across cell type / assay combinations as a heatmap."""
+#     print("NOT YET IMPLEMENTED", file=sys.stdout, flush=True)
 
 @app.command()
 def plot_variant_stats(
@@ -309,7 +322,7 @@ def plot_variant_stats(
     show_legend: Annotated[bool, typer.Option("-show_legend/-no-show_legend", help="Whether to display the plot legend.")] = True,
     verbose: Annotated[bool, typer.Option("-verbose/-quiet", help="Enable or disable verbose output.")] = True
 ):
-    """Manhattan-like plot for DNACipher variant statistics."""
+    """Manhattan-like plot for variant statistics."""
 
     # Load data
     locus_gwas_stats = pd.read_csv(stratified_gwas_stats_path, sep='\t')
@@ -362,7 +375,7 @@ def plot_volcano(
     alpha: Annotated[Optional[float], typer.Option("-alpha", help="Opacity of the scatter plot points.")] = 0.4,
     verbose: Annotated[bool, typer.Option("-verbose/-quiet", help="Enable or disable verbose output.")] = True
 ):
-    """Volcano plot for DNACipher variant significant molecular effects."""
+    """Volcano plot for Deep Variant Impact Mapping predicted molecular effects."""
 
     selected_gwas_stats = pd.read_csv(selected_gwas_stats_path, sep='\t')
     sig_effects = pd.read_csv(sig_effects_path, sep='\t')

@@ -24,23 +24,74 @@ https://colab.research.google.com/drive/17GiWLt_SigpVa6hl6A9yP_edM4IcQeEy?usp=sh
 DNACipher and DVIM analysis using a command-line interface, so that R
 users and non-Python programmers can utilize the model and analysis.
 
+Install
+-------
+
+Please replace 'mamba' with 'conda' if not installed, mamba much faster however (recommend installing mamba!).
+
+Expected install time is approximately X-minutes. 
+
+The current version has been tested with python 3.10 using the conda environment setup specified below, 
+on system Ubuntu 22.04.3 LTS.
+
+To install from source:
+
+    mamba create -n dnac_env python=3.10
+    mamba activate sheriff_env
+    mamba install matplotlib seaborn pandas scipy pytorch-lightning ipykernel zlib bioconda::bedtools 
+    pip install pyfaidx kipoiseq enformer-pytorch pybedtools
+
+    git clone https://github.com/BradBalderson/DNACipher.git
+    cd DNACipher
+    pip install .
+
+Usage
+-----
+
+    dnacipher --help
+     Usage: dnacipher [OPTIONS] COMMAND [ARGS]...                                                                                                          
+                                                                                                                                                       
+╭─ Options ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ --install-completion          Install completion for the current shell.                                                                             │
+│ --show-completion             Show completion for the current shell, to copy it or customize the installation.                                      │
+│ --help                        Show this message and exit.                                                                                           │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ infer-effects                Infers a single varaints effects across celltypes and assays, and optionally across the sequence.                      │
+│ infer-multivariant-effects   Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per variant, and    │
+│                              predicted effect sizes across the columns for all celltype/assay combinations.                                         │
+│ stratify-variants            Performs stratification of variants at GWAS loci to categories:  * 'candidate' variants (common significant variants), │
+│                              * 'rare' variants (non-significant rare variants in the same region as the candidate variants),  * 'background'        │
+│                              variants (common non-significant variants), and 'other' variants (rare variants outside of the hit locus).             │
+│ effect-pvals                 Calculates variant effect p-values for non-background variants against background variants.                            │
+│ impact-map                   Calls 'impact' variants - variants with significant predicted effects in particular cell types / assays compared with  │
+│                              background variants.                                                                                                   │
+│ plot-signals                 Plots DNACipher signal tracks and optional gene/cCRE annotations.                                                      │
+│ plot-variant-stats           Manhattan-like plot for variant statistics.                                                                            │
+│ plot-volcano                 Volcano plot for Deep Variant Impact Mapping predicted molecular effects.                                              │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+DNACipher variant effect inference
+------
+
 ***Just inferring the effects for a single variant returning summed-effect across given region***
-out_prefix="/home/jovyan/data4/bbalderson_runAI/MRFF/data/dnacipher_test/WRN_eQTL_"
-fasta_path="/home/jovyan/data4/bbalderson_runAI/MRFF/data/enformer/genome.fa"
+    out_prefix="/home/jovyan/data4/bbalderson_runAI/MRFF/data/dnacipher_test/WRN_eQTL_"
+    fasta_path="/home/jovyan/data4/bbalderson_runAI/MRFF/data/enformer/genome.fa"
+    
+    chr_="chr8"
+    pos="31119876"
+    index_base="1"
+    ref="T"
+    alt="C"
+    seq_pos="31076838"
+    effect_start="31119776"
+    effect_end="31119976"
+    
+    echo "prostate gland" > celltypes.txt
+    echo "plus strand polyA plus RNA-seq,,minus strand polyA plus RNA-seq" > assays.txt
 
-chr_="chr8"
-pos="31119876"
-index_base="1"
-ref="T"
-alt="C"
-seq_pos="31076838"
-effect_start="31119776"
-effect_end="31119976"
-
-echo "prostate gland" > celltypes.txt
-echo "plus strand polyA plus RNA-seq,,minus strand polyA plus RNA-seq" > assays.txt
-
-python -m dnacipher.main infer-effects ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end}
+    # Scores the effects for the varaint in the inputted contexts, with scoring referring to the SUM(ALT-REF) at the indicated positions
+    dnacipher infer-effects ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end}
 
 ***Inferring effects for a single variant with signals along sequence outputted***
 python -m dnacipher.main infer-effects ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end} -return_all

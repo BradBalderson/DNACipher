@@ -1,3 +1,5 @@
+build/
+DNACipher.egg-info/
 GRCh38-cCREs.bed
 gencode.v26.annotation.gtf
 gtf.gz
