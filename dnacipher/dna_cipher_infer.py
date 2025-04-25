@@ -638,11 +638,11 @@ class DNACipher():
         """
         seq_pos = None
         if type(seq_pos_col)!=type(None):
-            seq_positions = vcf_df[seq_pos_col].values
+            seq_positions = vcf_df[seq_pos_col].values.astype(int)
 
         effect_region = None
         if type(effect_region_cols)!=type(None):
-            effect_regions = vcf_df[effect_region_cols].values
+            effect_regions = vcf_df[effect_region_cols].values.astype(int)
 
         # Need to determine a list of cell types and assays that will be inferred, since will output a flattened
         # dataframe.
@@ -667,6 +667,7 @@ class DNACipher():
         for i in range(vcf_df.shape[0]):
 
             chr_, pos, ref, alt = vcf_df.values[i, 0:4]
+            pos = int(pos)
             if type(seq_pos_col)!=type(None):
                 seq_pos = seq_positions[i]
 

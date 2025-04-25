@@ -17,7 +17,7 @@ def plot_signals(signals_normed, variant_loc=None,
     # Getting required label information from the pandas dataframe index and columns
     exper_labels = list( signals_normed.columns.values )
     if type(exper_colors)==type(None):
-        exper_colors = get_colors( exper_labels, color_map=color_map )
+        exper_colors = get_colors( np.array(exper_labels), color_map=color_map )
 
     # Determining xtick labels, which will be the mid-point of each bin
     chr_ = signals_normed.index.values[0].split('_')[0]

@@ -1,3 +1,8 @@
+GRCh38-cCREs.bed
+gencode.v26.annotation.gtf
+gtf.gz
+t1d_runx3_assays.txt
+t1d_runx3_celltypes.txt
 assays.txt
 celltypes.txt
 dnacipher/call_significant_variant_effects_common-rare-separted.py

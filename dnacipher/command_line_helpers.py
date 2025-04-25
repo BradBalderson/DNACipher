@@ -6,6 +6,8 @@ from pathlib import Path
 
 import torch
 
+import matplotlib.pyplot as plt
+
 from . import dna_cipher_infer as dnaci
 from . import dna_cipher_model as dnacm
 from . import dna_cipher_plotting as dnapl
@@ -74,10 +76,28 @@ def parse_general_input(celltypes, assays, device, fasta_file_path, verbose):
 
     dnacipher = load_dnacipher(device, fasta_file_path, verbose)
         
-    celltypes = list(open(celltypes, 'r'))[0].strip('\n').split(',')
-    assays = list(open(assays, 'r'))[0].strip('\n').split(',')
+    celltypes = list(open(celltypes, 'r'))[0].strip('\n').split(',,')
+    assays = list(open(assays, 'r'))[0].strip('\n').split(',,')
 
     return dnacipher, celltypes, assays
+
+def dealWithPlot(savePlot, showPlot, closePlot, folder, plotName, dpi,
+				 tightLayout=True):
+    """ Deals with the current matplotlib.pyplot.
+    """
+
+    if tightLayout:
+        plt.tight_layout()
+
+    if savePlot:
+        plt.savefig(folder+plotName, dpi=dpi,
+					format=plotName.split('.')[-1])
+
+    if showPlot:
+        plt.show()
+
+    if closePlot:
+        plt.close()
     
     
 
