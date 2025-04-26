@@ -46,8 +46,8 @@ def load_dnacipher(device, fasta_file_path, verbose):
     
     if type(device) == type(None):
         device = get_best_device()
-    
-    git_path = Path(__file__).parent.parent # Should be the DNACipher path
+
+    git_path = Path(__file__) # Should be the DNACipher path
     
     model_path = f'{git_path}/weights/'
     weights_path = f'{model_path}TRAINING_DNACV5_MID-AVG-GENOME_ORIG-ALLOC_ENFORMER0_FINETUNE_STRATMSE_model_weights.pth'

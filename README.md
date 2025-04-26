@@ -37,9 +37,15 @@ on system Ubuntu 22.04.3 LTS.
 To install from source:
 
     mamba create -n dnac_env python=3.10
-    mamba activate sheriff_env
-    mamba install matplotlib seaborn pandas scipy pytorch-lightning ipykernel zlib bioconda::bedtools 
-    pip install pyfaidx kipoiseq enformer-pytorch pybedtools
+    mamba activate dnac_env
+    mamba install matplotlib seaborn pandas scipy pytorch-lightning zlib ipykernel bioconda::bedtools 
+    
+    # ensure zlib is found
+    export LDFLAGS="-L$CONDA_PREFIX/lib"
+    export CPPFLAGS="-I$CONDA_PREFIX/include"
+    export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
+    
+    pip install numba typer pyfaidx kipoiseq enformer-pytorch pybedtools
 
     git clone https://github.com/BradBalderson/DNACipher.git
     cd DNACipher
@@ -76,10 +82,18 @@ Usage
 DNACipher variant effect inference
 ------
 
+***Need to download the reference genome in order to load the sequences***
+
+    wget http://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz -O tutorials/data/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+    gzip -d tutorials/data/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+
+    mamba install bioconda::samtools
+    samtools faidx tutorials/data/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+
 ***Inferring the effects for a single variant***
 
-    out_prefix="/home/jovyan/data4/bbalderson_runAI/MRFF/data/dnacipher_test/WRN_eQTL_"
-    fasta_path="/home/jovyan/data4/bbalderson_runAI/MRFF/data/enformer/genome.fa"
+    out_prefix="tutorials/data/dnacipher_test/WRN_eQTL_"
+    fasta_path="tutorials/data/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
     
     chr_="chr8"
     pos="31119876"
@@ -108,6 +122,7 @@ This produces the plot shown above for Tutorial 1 of the Python API.
     wget -O - https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_26/gencode.v26.annotation.gtf.gz | gunzip -c > gencode.v26.annotation.gtf
     
     dnacipher plot-signals ${out_prefix}diff_signals.txt ${out_prefix} -gtf gencode.v26.annotation.gtf -cres GRCh38-cCREs.bed -chr ${chr_} -pos ${pos} -ref ${ref} -alt ${alt}
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dnacipher_tutorial1_figure.png" alt="DNACipher Tut1" width="1000">
 
 ***Inferring effects across variants just outputting the summed effect across locus***
 
@@ -127,8 +142,11 @@ Performing DVIM at the RUNX3 locus of T1D. This reproduces the plot shown above 
     runx3_gwas_stats_path="/home/jovyan/data4/bbalderson_runAI/myPython/DNACipher/tutorials/data/Chiou-2021-T1D-GWAS_RUNX3-signal_variant_stats.txt.gz"
     
     dnacipher stratify-variants ${runx3_gwas_stats_path} other_allele effect_allele base_pair_location p_value effect_allele_frequency ${out_prefix}
-    
+
+***Plotting the stratifications***
+ 
     dnacipher plot-variant-stats -gtf gencode.v26.annotation.gtf -- ${out_prefix}stratified_gwas_stats.txt "-log10_pval" var_label ${out_prefix}
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dnacipher_tutorial1_figure.png" alt="DNACipher Tut1" width="1000">
 
 ***Performing the variant effect inference in the relevant cell types***
 
