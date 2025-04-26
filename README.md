@@ -145,7 +145,7 @@ Performing DVIM at the RUNX3 locus of T1D. This reproduces the plot shown above 
 ***Plotting the stratifications***
  
     dnacipher plot-variant-stats -gtf gencode.v26.annotation.gtf -- ${out_prefix}stratified_gwas_stats.txt "-log10_pval" var_label ${out_prefix}
-<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_-log10_pval_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="1000">
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_-log10_pval_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="500">
 
 ***Performing the variant effect inference in the relevant cell types***
 
@@ -186,13 +186,13 @@ Now running the dnacipher effect inference for these variants, which will then c
 ***Plotting the results***
 
     dnacipher plot-variant-stats -gtf gencode.v26.annotation.gtf -- ${out_prefix}selected_gwas_stats.reformatted.chr_named.impact_calls.txt n_sig_effects var_label ${out_prefix}
-<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_n_sig_effects_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="1000">
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_n_sig_effects_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="500">
 
     dnacipher plot-volcano candidate ${runx3_stats} ${out_prefix}sig_effects.txt ${out_prefix}fold_changes.txt ${runx3_pvals} ${out_prefix}
-<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_candidate_volcano.png" alt="DVIM RUNX3 locus" width="1000">
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_candidate_volcano.png" alt="DVIM RUNX3 locus" width="500">
 
     dnacipher plot-volcano rare ${runx3_stats} ${out_prefix}sig_effects.txt ${out_prefix}fold_changes.txt ${runx3_pvals} ${out_prefix}
-<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_rare_volcano.png" alt="DVIM RUNX3 locus" width="1000">
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_rare_volcano.png" alt="DVIM RUNX3 locus" width="500">
 
 Citation
 --------
