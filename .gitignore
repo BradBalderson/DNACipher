@@ -7,7 +7,6 @@ WRN_eQTL_context_effects.txt
 WRN_eQTL_diff_signals.txt
 WRN_eQTL_ref_signals.txt
 WRN_eQTL_ref_signals_normed_and_ordered.txt
-WRN_eQTL_signals_plot.png
 dvim_runx3_boot_counts.txt
 dvim_runx3_boot_pvals.txt
 dvim_runx3_fold_changes.txt
