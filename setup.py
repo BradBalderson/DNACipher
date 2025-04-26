@@ -9,6 +9,7 @@ setup(
     author='Brad Balderson',
     author_email='bbalderson@salk.edu',
     packages=find_packages(),
+    include_package_data=True,  # <<< this is crucial
     #license=TBD #'GPL-3.0',
     long_description_content_type="text/markdown",
     long_description=long_description,

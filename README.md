@@ -84,16 +84,15 @@ DNACipher variant effect inference
 
 ***Need to download the reference genome in order to load the sequences***
 
-    wget http://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz -O tutorials/data/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
-    gzip -d tutorials/data/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+    wget -O - http://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz | gunzip -c > hg38.fa
 
     mamba install bioconda::samtools
-    samtools faidx tutorials/data/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+    samtools faidx hg38.fa
 
 ***Inferring the effects for a single variant***
 
-    out_prefix="tutorials/data/dnacipher_test/WRN_eQTL_"
-    fasta_path="tutorials/data/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
+    out_prefix="WRN_eQTL_"
+    fasta_path="hg38.fa"
     
     chr_="chr8"
     pos="31119876"
@@ -122,12 +121,12 @@ This produces the plot shown above for Tutorial 1 of the Python API.
     wget -O - https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_26/gencode.v26.annotation.gtf.gz | gunzip -c > gencode.v26.annotation.gtf
     
     dnacipher plot-signals ${out_prefix}diff_signals.txt ${out_prefix} -gtf gencode.v26.annotation.gtf -cres GRCh38-cCREs.bed -chr ${chr_} -pos ${pos} -ref ${ref} -alt ${alt}
-<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dnacipher_tutorial1_figure.png" alt="DNACipher Tut1" width="1000">
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/WRN_eQTL_signals_plot.png" alt="DNACipher Tut1" width="1000">
 
 ***Inferring effects across variants just outputting the summed effect across locus***
 
-    out_prefix="/home/jovyan/data4/bbalderson_runAI/MRFF/data/dnacipher_test/eQTLs_"
-    vcf_path="/home/jovyan/data4/bbalderson_runAI/myPython/DNACipher/tutorials/data/gtex_variants_SMALL.vcf"
+    out_prefix="eQTLs_"
+    vcf_path="tutorials/data/gtex_variants_SMALL.vcf"
     
     dnacipher infer-multivariant-effects ${vcf_path} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base}
 
@@ -138,15 +137,15 @@ Performing DVIM at the RUNX3 locus of T1D. This reproduces the plot shown above 
 
 ***Stratifying the variants at the RUNX3 T1D GWAS loci into the the common, rare, background variants and other variants***
 
-    out_prefix="/home/jovyan/data4/bbalderson_runAI/MRFF/data/dnacipher_test/dvim_runx3_"
-    runx3_gwas_stats_path="/home/jovyan/data4/bbalderson_runAI/myPython/DNACipher/tutorials/data/Chiou-2021-T1D-GWAS_RUNX3-signal_variant_stats.txt.gz"
+    out_prefix="dvim_runx3_"
+    runx3_gwas_stats_path="tutorials/data/Chiou-2021-T1D-GWAS_RUNX3-signal_variant_stats.txt.gz"
     
     dnacipher stratify-variants ${runx3_gwas_stats_path} other_allele effect_allele base_pair_location p_value effect_allele_frequency ${out_prefix}
 
 ***Plotting the stratifications***
  
     dnacipher plot-variant-stats -gtf gencode.v26.annotation.gtf -- ${out_prefix}stratified_gwas_stats.txt "-log10_pval" var_label ${out_prefix}
-<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dnacipher_tutorial1_figure.png" alt="DNACipher Tut1" width="1000">
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_-log10_pval_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="100">
 
 ***Performing the variant effect inference in the relevant cell types***
 
@@ -161,8 +160,6 @@ Need to re-arrange the frame to make sure is in format CHR, POS, REF, ALT
     awk 'BEGIN {OFS="\t"} {print $3, $4, $6, $5, $NF}' ${out_prefix}selected_gwas_stats.txt > ${out_prefix}selected_gwas_stats.reformatted.txt
     awk 'BEGIN {OFS=FS="\t"} NR==1 || $1 ~ /^chr/ {print $0; next} { $1 = "chr" $1; print }' ${out_prefix}selected_gwas_stats.reformatted.txt > ${out_prefix}selected_gwas_stats.reformatted.chr_named.txt
 
-    awk -F'\t' 'NR==1 || $5 != "other"' ${out_prefix}stratified_gwas_stats.reformatted.chr_named.txt > ${out_prefix}selected_gwas_stats.reformatted.chr_named.txt
-
 IMPORTANT need to set the seq_pos column, so that each variant is being scored consistently for DVIM
 
     runx3_stats=${out_prefix}selected_gwas_stats.reformatted.chr_named.txt
@@ -172,7 +169,7 @@ IMPORTANT need to set the seq_pos column, so that each variant is being scored c
 
 Now running the dnacipher effect inference for these variants, which will then compare statistically.
 
-    dncipher infer-multivariant-effects ${runx3_stats_dvim} t1d_runx3_celltypes.txt t1d_runx3_assays.txt ${fasta_path} ${out_prefix} -i 1 -seq_pos_col seq_pos
+    dnacipher infer-multivariant-effects ${runx3_stats_dvim} t1d_runx3_celltypes.txt t1d_runx3_assays.txt ${fasta_path} ${out_prefix} -i 1 -seq_pos_col seq_pos
 
 ***Calculating p-values***
 
@@ -189,10 +186,13 @@ Now running the dnacipher effect inference for these variants, which will then c
 ***Plotting the results***
 
     dnacipher plot-variant-stats -gtf gencode.v26.annotation.gtf -- ${out_prefix}selected_gwas_stats.reformatted.chr_named.impact_calls.txt n_sig_effects var_label ${out_prefix}
-    
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_n_sig_effects_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="100">
+
     dnacipher plot-volcano candidate ${runx3_stats} ${out_prefix}sig_effects.txt ${out_prefix}fold_changes.txt ${runx3_pvals} ${out_prefix}
-    
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_candidate_volcano.png" alt="DVIM RUNX3 locus" width="100">
+
     dnacipher plot-volcano rare ${runx3_stats} ${out_prefix}sig_effects.txt ${out_prefix}fold_changes.txt ${runx3_pvals} ${out_prefix}
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_rare_volcano.png" alt="DVIM RUNX3 locus" width="100">
 
 Citation
 --------
