@@ -1,13 +1,13 @@
-DNACipher
+🧬DNACipher
 ==================
 ## Prediction of genomic measurements from DNA sequence in observed and unobserved cell types and assays
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dnacipher_logo.png" alt="DNACipher Example" width="600">
 
 **DNACipher is a DNA sequence deep learning model that also includes cell type and assay information on the model input.**
 
-🦾DNACipher, a deep learning framework that integrates long-range sequence modeling with biological context imputation, 
-enabling variant effect prediction across 38,000+ experimental contexts, 
-a 7-fold improvement over previous state-of-the-art models such as Enformer.
+🦾DNACipher, a deep learning framework that integrates long-range sequence modeling (🧬) with biological context imputation (🧠🫀🫁), 
+enabling variant effect prediction across 38,000+ experimental contexts🎯, 
+a 7-fold improvement over previous state-of-the-art models such as Enformer📈.
 
 🎯💥Deep Variant Impact Mapping (DVIM) is an analysis framework built on DNACipher that calls significant variant effects
 at GWAS loci, to call common and rare 'impact' variants. These impact variants have the following properties:
