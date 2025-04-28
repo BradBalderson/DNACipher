@@ -220,8 +220,8 @@ The below code produces signal plots for the diff-signals shown above, which is 
 
 ***2.2.3 Inferring effects across variants just outputting the summed effect across locus***
 
-This shows how to infer effects for multiple variants, just outputted the SIGN*SUM(ABS(ALT-REF)), where SIGN refers to 
-if most positions were negative or positive along the sequence.
+This shows how to infer effects for multiple variants, just outputing the SIGN*SUM(ABS(ALT-REF)), where SIGN refers to 
+if most positions were negative or positive along the sequence (SIGN = {-1, +1}).
 
 The input file to this command is a VCF-like tab-separated file, that looks like this:
 
@@ -242,10 +242,10 @@ chromosome for the variant. For example, could have an input file like this:
     chr8    31119876        T       C   31119866    31119856    31119886
 
 In this above example, would infer the effect for the variant, with the query sequence centred at SEQ_POS, and measuring
-the effect only at positions START_EFFECT-END_EFFECT. So with this input, for the same variant, we could alter SEQ_POS
+the effect only at positions START_EFFECT:END_EFFECT. So with this input, for the same variant, we could alter SEQ_POS
 and START_EFFECT and END_EFFECT in order to measure different predicted effects along the genome for the same variant.
 
-Infering effects for multiple variants like this is achieved with the command below:
+Inferring effects for multiple variants like this is achieved with the command below:
 
     dnacipher infer-multivariant-effects --help
                                                                                                                                                          
@@ -315,12 +315,12 @@ for the given query outputted.
 3.0 Deep Variant Impact Mapping (DVIM)
 ------
 
-DVIM analysis is performed one locus at a time, and assumes that the inputted VCF-like file determined above has been
-subsetted to the variants surrounding a given GWAS locus.
+DVIM analysis is performed one locus at a time, and assumes that the inputted VCF-like file has been
+subsetted to the variants surrounding a given GWAS hit locus.
 
-The below will show reproduce the DVIM at the RUNX3 locus of T1D.
+The below will reproduce the DVIM at the RUNX3 locus of T1D.
 
-The first input file looks like this, but it is flexible of the order and naming of the columns, required information is
+The first input file looks like this, but it is flexible of the order and naming of the columns. Required information is
 the chromosome, position, ref, alt, allele_frequency, p_value. This is necessary to perform the variant stratification
 to decide what are the different variant types present at the locus for DVIM.
 
@@ -498,7 +498,8 @@ the predicted molecular effect significance. Output looks like this:
     1.0     1.0
     0.9998000199980002      0.9998000199980002
 
-Rows correspond to a variant, and the columns correspond to the context in format ***CELLTYPE---ASSAY***.
+Rows correspond to a variant, and the columns correspond to the context in format ***CELLTYPE---ASSAY***, and the values
+are the p-values for the inferred effect being significantly different from the background variants.
 
 ***Calling significant effects***
 
