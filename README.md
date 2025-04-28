@@ -16,8 +16,8 @@ at GWAS loci, to call common and rare 'impact' variants. These impact variants h
     👉 Have significant predicted molecular effects in >=1 biological contexts above non-significant common variants at a similar genome location.
     👉 They can be common or rare variants - enabling the study of rare variants previously inaccessible to classical statistical methods.
 
-DNACipher is made available here as both a Python interface (🐍) and a command-line-interface (🖥), with tutorials below reproducing
-key results from the DNACipher manuscript (📖).
+DNACipher is made available here as both a Python interface 🐍 and a command-line-interface 🖥, with tutorials below reproducing
+key results from the DNACipher manuscript 📖.
 
  1.0 Tutorials - Python Interface
 -------
@@ -145,7 +145,7 @@ effects for, the path to the fasta file and the prefix for the output files.
     │ --help                                                              Show this message and exit.                                                       │
     ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
-***📉Running example, showing the variant effect inference for a causal eQTL at the WRN gene locus:***
+***🏃Running example, showing the variant effect inference for a causal eQTL at the WRN gene locus:***
 
     out_prefix="WRN_eQTL_"
     fasta_path="hg38.fa"
@@ -168,7 +168,7 @@ effects for, the path to the fasta file and the prefix for the output files.
     # Inferring effects for a single variant with signals along sequence outputted
     dnacipher infer-effects ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end} -return_all
 
-***2.2.2 📉Plotting results***
+***2.2.2 🖼Plotting results***
 
     dnacipher plot-signals --help
                                                                                                                                                              
