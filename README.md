@@ -19,7 +19,7 @@ at GWAS loci, to call common and rare 'impact' variants. These impact variants h
 DNACipher is made available here as both a Python interface 🐍 and a command-line-interface 🖥, with tutorials below reproducing
 key results from the DNACipher manuscript 📖.
 
- 1.0 Tutorials - Python Interface
+ 1.0 Tutorials - 🐍Python Interface🐍
 -------
 ### The following tutorials are written in google collab, showing how to use the DNACipher Python interface.
 
@@ -31,7 +31,7 @@ https://colab.research.google.com/gist/BradBalderson/c4389baa0d789314259b8479cfd
 https://colab.research.google.com/drive/17GiWLt_SigpVa6hl6A9yP_edM4IcQeEy?usp=sharing
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dnacipher_DVIM_example.png" alt="DNACipher Tut2" width="1000">
 
- 2.0 Tutorials - Command-line Interface
+ 2.0 Tutorials -🖥Command-line Interface🖥
 -------
 ### DNACipher DVIM command-line-interface
 
