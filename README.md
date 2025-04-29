@@ -70,29 +70,29 @@ Usage 💻
 -----
 
     dnacipher --help
-    
-     Usage: dnacipher [OPTIONS] COMMAND [ARGS]...                                                                                               
-     
-    ╭─ Options ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ --install-completion          Install completion for the current shell.                                                                             │
-    │ --show-completion             Show completion for the current shell, to copy it or customize the installation.                                      │
-    │ --help                        Show this message and exit.                                                                                           │
-    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    ╭─ Commands ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ infer-effects                Infers a single varaints effects across celltypes and assays, and optionally across the sequence.                      │
-    │ infer-multivariant-effects   Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per variant, and    │
-    │                              predicted effect sizes across the columns for all celltype/assay combinations.                                         │
-    │ stratify-variants            Performs stratification of variants at GWAS loci to categories:  * 'candidate' variants (common significant variants), │
-    │                              * 'rare' variants (non-significant rare variants in the same region as the candidate variants),  * 'background'        │
-    │                              variants (common non-significant variants), and 'other' variants (rare variants outside of the hit locus).             │
-    │ effect-pvals                 Calculates variant effect p-values for non-background variants against background variants.                            │
-    │ impact-map                   Calls 'impact' variants - variants with significant predicted effects in particular cell types / assays compared with  │
-    │                              background variants.                                                                                                   │
-    │ plot-signals                 Plots DNACipher signal tracks and optional gene/cCRE annotations.                                                      │
-    │ plot-variant-stats           Manhattan-like plot for variant statistics.                                                                            │
-    │ plot-volcano                 Volcano plot for Deep Variant Impact Mapping predicted molecular effects.                                              │
-    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-
+                                                                                                                                              
+     Usage: dnacipher [OPTIONS] COMMAND [ARGS]...                                                                                                                                                                                                                                               
+    ╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │ --install-completion          Install completion for the current shell.                                                                              │
+    │ --show-completion             Show completion for the current shell, to copy it or customize the installation.                                       │
+    │ --help                        Show this message and exit.                                                                                            │
+    ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ Commands ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │ celltypes                    Prints the available celltypes to infer effects for                                                                     │
+    │ assays                       Prints the available assays to infer effects for                                                                        │
+    │ infer-effects                Infers a single varaints effects across celltypes and assays, and optionally across the sequence.                       │
+    │ infer-multivariant-effects   Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per variant, and     │
+    │                              predicted effect sizes across the columns for all celltype/assay combinations.                                          │
+    │ stratify-variants            Performs stratification of variants at GWAS loci to categories:  * 'candidate' variants (common significant variants),  │
+    │                              * 'rare' variants (non-significant rare variants in the same region as the candidate variants),  * 'background'         │
+    │                              variants (common non-significant variants), and 'other' variants (rare variants outside of the hit locus).              │
+    │ effect-pvals                 Calculates variant effect p-values for non-background variants against background variants.                             │
+    │ impact-map                   Calls 'impact' variants - variants with significant predicted effects in particular cell types / assays compared with   │
+    │                              background variants.                                                                                                    │
+    │ plot-signals                 Plots DNACipher signal tracks and optional gene/cCRE annotations.                                                       │
+    │ plot-variant-stats           Manhattan-like plot for variant statistics.                                                                             │
+    │ plot-volcano                 Volcano plot for Deep Variant Impact Mapping predicted molecular effects.                                               │
+    ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 2.2 DNACipher variant effect inference 📊
 ------
@@ -147,6 +147,8 @@ effects for, the path to the fasta file and the prefix for the output files.
     ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 ***🏃Running example, showing the variant effect inference for a causal eQTL at the WRN gene locus:***
+
+To see the available cell types and assays available for inference, can run *dnacipher celltypes* or *dnacipher assays*.
 
     out_prefix="WRN_eQTL_"
     fasta_path="hg38.fa"

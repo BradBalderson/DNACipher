@@ -8,6 +8,9 @@ import torch
 
 import matplotlib.pyplot as plt
 
+import numpy as np
+import pandas as pd
+
 from . import dna_cipher_infer as dnaci
 from . import dna_cipher_model as dnacm
 from . import dna_cipher_plotting as dnapl
@@ -40,6 +43,24 @@ def get_best_device():
             print("No apparent GPU available, using CPU (will be slow).", file=sys.stdout, flush=True)
 
     return device
+
+def load_context_data():
+    """ Loads the metadata used to train the model, important to see predictable contexts. """
+
+    git_path = Path(__file__).parent # Should be the DNACipher path
+    
+    model_path = f'{git_path}/weights/'
+    sample_file_path = f'{model_path}encode_meta_encode_imputable_filter-fixed_train-test_samp-probs.tsv'
+
+    sample_df = pd.read_csv(sample_file_path, sep='\t', index_col=0)
+
+    celltype_assays = [tuple(celltype_assay.split('---')) for celltype_assay in
+                       sample_df['celltype_assay'].values.astype(str)]
+    celltype_assay_labels = sample_df['allocation'].values # Specifies which were used as train/test
+    celltypes = list(np.unique([celltype_assay[0] for celltype_assay in celltype_assays]))
+    assays = list(np.unique([celltype_assay[1] for celltype_assay in celltype_assays]))
+
+    return celltype_assays, celltype_assay_labels, celltypes, assays
 
 def load_dnacipher(device, fasta_file_path, verbose):
     """ Loads the DNACipher model. """

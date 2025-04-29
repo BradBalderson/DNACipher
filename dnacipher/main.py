@@ -21,6 +21,24 @@ from . import dna_cipher_plotting as dnapl
 app = typer.Typer(pretty_exceptions_short=False)
 
 @app.command()
+def celltypes():
+    """Prints the available celltypes to infer effects for."""
+    
+    celltype_assays, celltype_assay_labels, celltypes, assays = clh.load_context_data()
+
+    for celltype in celltypes:
+        print(celltype, file=sys.stdout, flush=True)
+
+@app.command()
+def assays():
+    """Prints the available assays to infer effects for."""
+    
+    celltype_assays, celltype_assay_labels, celltypes, assays = clh.load_context_data()
+
+    for assay in assays:
+        print(assay, file=sys.stdout, flush=True)
+
+@app.command()
 def infer_effects(
     chr_: Annotated[str, typer.Argument(help="Chromosome of variant.")],
     pos: Annotated[int, typer.Argument(help="Position of variant on chromosome.")],
