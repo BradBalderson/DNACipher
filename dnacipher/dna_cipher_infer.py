@@ -181,8 +181,10 @@ class DNACipher():
             every 6 N's in a row with a single N.
         """
         token_id = self.get_seq_tokens(seq)
-        if self.transformer_model_name == 'enformer': # NT model.
-            _, embeddings = self.transformer_model(token_id.to(self.device), return_embeddings=True)
+        if self.transformer_model_name == 'enformer':
+            with torch.no_grad():
+                _, embeddings = self.transformer_model(token_id.to(self.device), return_embeddings=True)
+                
             return embeddings  # 896 X 3072, i.e. 128bp bins, with 3072 seq features, only one transformation to the signal values.
 
     def get_seqs(self, chr_, pos, ref, alt, index_base=0, seq_pos=None, correct_ref=False):
