@@ -46,7 +46,8 @@ Please replace 'mamba' with 'conda' if not installed, mamba much faster however 
 Expected install time is approximately 3-minutes. 
 
 The current version has been tested with python 3.10 using the conda environment setup specified below, 
-on a linux Ubuntu 22.04.3 LTS with a Nvidia A40 GPU (40Gb GPU RAM, 40Gb of CPU RAM) running Cuda 12.4 driver version 550.90.07. 
+on a linux Ubuntu 22.04.3 LTS with a Nvidia A40 GPU (40Gb GPU RAM, 40Gb of CPU RAM) running Cuda 12.4 driver version 550.90.07.
+An independent user (Dr Qiongyi Zhao, UQ IMB) also tested on Rocky Linux 8.10 using just CPU.
 
 To install from source:
 
@@ -69,29 +70,29 @@ Usage 💻
 -----
 
     dnacipher --help
-    
-     Usage: dnacipher [OPTIONS] COMMAND [ARGS]...                                                                                               
-     
-    ╭─ Options ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ --install-completion          Install completion for the current shell.                                                                             │
-    │ --show-completion             Show completion for the current shell, to copy it or customize the installation.                                      │
-    │ --help                        Show this message and exit.                                                                                           │
-    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    ╭─ Commands ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ infer-effects                Infers a single varaints effects across celltypes and assays, and optionally across the sequence.                      │
-    │ infer-multivariant-effects   Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per variant, and    │
-    │                              predicted effect sizes across the columns for all celltype/assay combinations.                                         │
-    │ stratify-variants            Performs stratification of variants at GWAS loci to categories:  * 'candidate' variants (common significant variants), │
-    │                              * 'rare' variants (non-significant rare variants in the same region as the candidate variants),  * 'background'        │
-    │                              variants (common non-significant variants), and 'other' variants (rare variants outside of the hit locus).             │
-    │ effect-pvals                 Calculates variant effect p-values for non-background variants against background variants.                            │
-    │ impact-map                   Calls 'impact' variants - variants with significant predicted effects in particular cell types / assays compared with  │
-    │                              background variants.                                                                                                   │
-    │ plot-signals                 Plots DNACipher signal tracks and optional gene/cCRE annotations.                                                      │
-    │ plot-variant-stats           Manhattan-like plot for variant statistics.                                                                            │
-    │ plot-volcano                 Volcano plot for Deep Variant Impact Mapping predicted molecular effects.                                              │
-    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-
+                                                                                                                                              
+     Usage: dnacipher [OPTIONS] COMMAND [ARGS]...                                                                                                                                                                                                                                               
+    ╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │ --install-completion          Install completion for the current shell.                                                                              │
+    │ --show-completion             Show completion for the current shell, to copy it or customize the installation.                                       │
+    │ --help                        Show this message and exit.                                                                                            │
+    ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ Commands ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │ celltypes                    Prints the available celltypes to infer effects for.                                                                     │
+    │ assays                       Prints the available assays to infer effects for.                                                                        │
+    │ infer-effects                Infers a single varaints effects across celltypes and assays, and optionally across the sequence.                       │
+    │ infer-multivariant-effects   Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per variant, and     │
+    │                              predicted effect sizes across the columns for all celltype/assay combinations.                                          │
+    │ stratify-variants            Performs stratification of variants at GWAS loci to categories:  * 'candidate' variants (common significant variants),  │
+    │                              * 'rare' variants (non-significant rare variants in the same region as the candidate variants),  * 'background'         │
+    │                              variants (common non-significant variants), and 'other' variants (rare variants outside of the hit locus).              │
+    │ effect-pvals                 Calculates variant effect p-values for non-background variants against background variants.                             │
+    │ impact-map                   Calls 'impact' variants - variants with significant predicted effects in particular cell types / assays compared with   │
+    │                              background variants.                                                                                                    │
+    │ plot-signals                 Plots DNACipher signal tracks and optional gene/cCRE annotations.                                                       │
+    │ plot-variant-stats           Manhattan-like plot for variant statistics.                                                                             │
+    │ plot-volcano                 Volcano plot for Deep Variant Impact Mapping predicted molecular effects.                                               │
+    ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 2.2 📊DNACipher variant effect inference 
 ------
@@ -152,6 +153,8 @@ effects for, the path to the fasta file and the prefix for the output files.
     ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 ***🏃Running example, showing the variant effect inference for a causal eQTL at the WRN gene locus:***
+
+To see the available cell types and assays available for inference, can run *dnacipher celltypes* or *dnacipher assays*.
 
     out_prefix="WRN_eQTL_"
     fasta_path="hg38.fa"
@@ -303,7 +306,7 @@ Inferring effects for multiple variants like this is achieved with the command b
     │ --help                                                                   Show this message and exit.                                                  │
     ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
-Working example using provided tutorial data, this will take ~0.6 minutes to run.
+Working example using provided tutorial data, this will take ~0.4 mins and ~4.2Gb of GPU RAM (A40 GPU), or ~41 min for CPU.
 
     out_prefix="eQTLs_"
     vcf_path="tutorials/data/gtex_variants_SMALL.vcf"
@@ -464,7 +467,7 @@ IMPORTANT need to set the seq_pos column, so that each variant is being scored c
     awk 'BEGIN {OFS=FS="\t"} NR==1 {print $0, "seq_pos"; next} {print $0, "24970252"}' ${runx3_stats} > ${runx3_stats_dvim}
 
 Now running the dnacipher effect inference for these variants, which will then compare statistically.
-~7mins run time for 543 variants and 108 contexts.
+~5mins and 4.2Gb of GPU RAM on A40 GPU to infer effects across 543 variants and 108 contexts.
 
     dnacipher infer-multivariant-effects ${runx3_stats_dvim} t1d_runx3_celltypes.txt t1d_runx3_assays.txt ${fasta_path} ${out_prefix} -i 1 -seq_pos_col seq_pos
 
