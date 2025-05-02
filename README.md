@@ -93,8 +93,11 @@ Usage 💻
     ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 
-2.2 DNACipher variant effect inference 📊
+2.2 📊DNACipher variant effect inference 
 ------
+___
+<details>
+<summary>Step 0: Required data download: reference genome in order to load the sequences for variant effect inference</summary>
 
 ***Most steps below need the reference genome in order to load the sequences for variant effect inference***
 
@@ -103,7 +106,10 @@ Usage 💻
     mamba install bioconda::samtools
     samtools faidx hg38.fa
 
-***2.2.1 Inferring the effects for a single variant***
+</details>
+
+<details>
+<summary><strong>2.2.1 Inferring the effects for a single variant</strong></summary>
 
 The minimal inputs here are just the variant CHR, POS, REF, ALT of the variant, the celltypes and assays to infer the 
 effects for, the path to the fasta file and the prefix for the output files.
@@ -168,7 +174,10 @@ effects for, the path to the fasta file and the prefix for the output files.
     # Inferring effects for a single variant with signals along sequence outputted
     dnacipher infer-effects ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end} -return_all
 
-***2.2.2 🖼Plotting results***
+</details>
+
+<details>
+<summary><strong>2.2.2 🖼Plotting results for a single variant</strong></summary>
 
     dnacipher plot-signals --help
                                                                                                                                                              
@@ -218,7 +227,10 @@ The below code produces signal plots for the diff-signals shown above, which is 
     dnacipher plot-signals ${out_prefix}diff_signals.txt ${out_prefix} -gtf gencode.v26.annotation.gtf -cres GRCh38-cCREs.bed -chr ${chr_} -pos ${pos} -ref ${ref} -alt ${alt}
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/WRN_eQTL_signals_plot.png" alt="DNACipher Tut1" width="1000">
 
-***2.2.3 👐Inferring effects for multiple variants outputting the summed effect across the locus***
+</details>
+
+<details>
+<summary><strong>2.2.3 👐Inferring effects for multiple variants outputting the summed effect across the locus</strong></summary>
 
 This shows how to infer effects for multiple variants, just outputing the SIGN*SUM(ABS(ALT-REF)), where SIGN refers to 
 if most positions were negative or positive along the sequence (SIGN = {-1, +1}).
@@ -312,7 +324,9 @@ The output file looks like this:
 Each row refers to a row in the ***vcf_path*** input, and each column is the ***CELLTYPE---ASSAY***, with SUM(ALT-REF)
 for the given query outputted.
 
-3.0 🎯💥Deep Variant Impact Mapping (DVIM)
+</details>
+
+2.3 🎯💥Deep Variant Impact Mapping (DVIM)
 ------
 
 DVIM analysis is performed one locus at a time, and assumes that the inputted VCF-like file has been
@@ -328,7 +342,8 @@ to decide what are the different variant types present at the locus for DVIM.
     rs6657823       0.774   1       24890003        G       A       0.138   0.00593 0.020636                                0.11125903931710739
     rs6663476       0.539   1       24890041        C       T       0.831   -0.012048       0.019613  
 
-***3.1 🤹‍Stratifying the variants at the RUNX3 T1D GWAS loci into the the common, rare, background variants and other variants***
+<details>
+<summary><strong>2.3.1 🤹‍Stratifying the variants at the RUNX3 T1D GWAS loci into the common, rare, background variants and other variants</strong></summary>
 
     dnacipher stratify-variants --help
                                                                                                                                                              
@@ -387,7 +402,10 @@ As output, this gives the same input file, but with an extra column 'variant_lab
 
 The labels are explained in the ***dnacipher stratify-variants --help*** documentation above.
 
-***🎨Plotting the stratifications***
+</details>
+
+<details>
+<summary><strong>2.3.2 🎨Plotting the variant stratification results</strong></summary>
 
 Easy to check this result with the following command:
 
@@ -420,7 +438,10 @@ We can now plot to see if the variant stratification make sense:
     dnacipher plot-variant-stats -gtf gencode.v26.annotation.gtf -- ${out_prefix}stratified_gwas_stats.txt "-log10_pval" var_label ${out_prefix}
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_-log10_pval_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="500">
 
-***3.2. 🧠🫀🫁Performing the variant effect inference in the relevant cell types***
+</details>
+
+<details>
+<summary><strong>2.3.3 🧠🫀🫁Performing the variant effect inference in the relevant cell types</strong></summary>
 
 Creating the input files required for the DNACipher variant effect inference for cell types and assays.
 
@@ -447,7 +468,10 @@ Now running the dnacipher effect inference for these variants, which will then c
 
     dnacipher infer-multivariant-effects ${runx3_stats_dvim} t1d_runx3_celltypes.txt t1d_runx3_assays.txt ${fasta_path} ${out_prefix} -i 1 -seq_pos_col seq_pos
 
-***👩‍💻Calculating p-values***
+</details>
+
+<details>
+<summary><strong>2.3.4 👩‍💻Calculating variant-effect p-values</strong></summary>
 
     dnacipher effect-pvals --help
                                                                                                                                                              
@@ -501,9 +525,12 @@ the predicted molecular effect significance. Output looks like this:
 Rows correspond to a variant, and the columns correspond to the context in format ***CELLTYPE---ASSAY***, and the values
 are the p-values for the inferred effect being significantly different from the background variants.
 
-***🎯Calling significant effects***
+</details>
 
-Now we can call the 'impact'💥 variants, setting our desired fold-change and p-value cutoff!
+<details>
+<summary><strong>2.3.5 🎯Calling significant variant effects</strong></summary>
+
+***Now we can call the 'impact'💥 variants, setting our desired fold-change and p-value cutoff!***
 
     dnacipher impact-map --help
                                                                                                                                                              
@@ -551,7 +578,12 @@ the number of significant effects they have:
     chr1    24964519        A       T       candidate       2       True
     chr1    24966177        C       T       candidate       18      True
 
-***👩‍🎨Plotting the results***
+</details>
+
+<details>
+<summary><strong>2.3.6 👩‍🎨Plotting the 💥impact variant results</strong></summary>
+
+******
 
 Can now-replot the variant stats, this time with the n_sig_effects to show the impact variants!
 
@@ -565,6 +597,8 @@ Also volcano plots to assess the cutoffs used to call the impact variants:
 
     dnacipher plot-volcano rare ${runx3_stats} ${out_prefix}sig_effects.txt ${out_prefix}fold_changes.txt ${runx3_pvals} ${out_prefix}
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_rare_volcano.png" alt="DVIM RUNX3 locus" width="500">
+
+</details>
 
 Citation 🙇‍
 --------
