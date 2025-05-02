@@ -20,6 +20,13 @@ from . import dna_cipher_plotting as dnapl
 
 app = typer.Typer(pretty_exceptions_short=False)
 
+
+@app.command()
+def device():
+    """Prints the device that is detected and will be used by DNACipher."""
+
+    clh.get_best_device()
+
 @app.command()
 def celltypes():
     """Prints the available celltypes to infer effects for."""

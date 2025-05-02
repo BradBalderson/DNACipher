@@ -45,13 +45,16 @@ Please replace 'mamba' with 'conda' if not installed, mamba much faster however 
 
 Expected install time is approximately 3-minutes. 
 
+<details>
+<summary><strong> 📟Installing from source</strong></summary>
+
 The current version has been tested with python 3.10 using the conda environment setup specified below, with the following systems:
 
     * Linux Ubuntu 22.04.3 LTS with a Nvidia A40 GPU (40Gb GPU RAM, 40Gb of CPU RAM) running Cuda 12.4 driver version 550.90.07.
     * Rocky Linux 8.10 using just CPU (tested by Dr Qiongyi Zhao, UQ IMB).
     * Nvidia L40 GPU (Will Rieger, UQ SCMB).
 
-To install from source:
+Basic commands to install.
 
 ```bash
 mamba create -n dnac_env python=3.10
@@ -69,6 +72,30 @@ git clone https://github.com/BradBalderson/DNACipher.git
 cd DNACipher
 pip install .
 ```
+
+>📣Depending on your system, the above may not install the correct Pytorch to detect your GPU.
+> To check this, run the following:
+```bash
+dnacipher device
+```
+    Will use cuda GPU
+
+<details>
+<summary><strong>🧐Trouble shooting no GPU detected:</strong></summary>
+If you have a GPU but it was not detected, please check you have installed the correct Pytorch by:
+
+```bash
+nvidia-smi
+```
+
+Then cross-reference with this Pytorch resource to ensure you are installing the correct Pytorch:
+
+https://pytorch.org/get-started/locally/ 
+
+Once you have done this, re-check if the GPU is detected with the ***dnacipher device*** command.
+
+</details>
+</details>
 
 Usage 💻
 -----
