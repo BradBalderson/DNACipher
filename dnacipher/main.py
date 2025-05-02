@@ -27,7 +27,7 @@ version_name = '💥First Impact'
 def version():
     """Prints the DNACipher version."""
 
-    print(f"DNACipher {version}: {version_name}")
+    print(f"DNACipher {version}: {version_name}", file=sys.stdout, flush=True)
 
 @app.command()
 def device():
