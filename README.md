@@ -45,32 +45,37 @@ Please replace 'mamba' with 'conda' if not installed, mamba much faster however 
 
 Expected install time is approximately 3-minutes. 
 
-The current version has been tested with python 3.10 using the conda environment setup specified below, 
-on a linux Ubuntu 22.04.3 LTS with a Nvidia A40 GPU (40Gb GPU RAM, 40Gb of CPU RAM) running Cuda 12.4 driver version 550.90.07.
-An independent user (Dr Qiongyi Zhao, UQ IMB) also tested on Rocky Linux 8.10 using just CPU.
+The current version has been tested with python 3.10 using the conda environment setup specified below, with the following systems:
+
+    * Linux Ubuntu 22.04.3 LTS with a Nvidia A40 GPU (40Gb GPU RAM, 40Gb of CPU RAM) running Cuda 12.4 driver version 550.90.07.
+    * Rocky Linux 8.10 using just CPU (tested by Dr Qiongyi Zhao, UQ IMB).
+    * Nvidia L40 GPU (Will Rieger, UQ SCMB).
 
 To install from source:
 
-    mamba create -n dnac_env python=3.10
-    mamba activate dnac_env
-    mamba install matplotlib seaborn pandas scipy pytorch-lightning zlib ipykernel bioconda::bedtools 
-    
-    # ensure zlib is found
-    export LDFLAGS="-L$CONDA_PREFIX/lib"
-    export CPPFLAGS="-I$CONDA_PREFIX/include"
-    export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
-    
-    pip install numba typer pyfaidx kipoiseq enformer-pytorch pybedtools
+```bash
+mamba create -n dnac_env python=3.10
+mamba activate dnac_env
+mamba install matplotlib seaborn pandas scipy pytorch-lightning zlib ipykernel bioconda::bedtools 
 
-    git clone https://github.com/BradBalderson/DNACipher.git
-    cd DNACipher
-    pip install .
+# ensure zlib is found
+export LDFLAGS="-L$CONDA_PREFIX/lib"
+export CPPFLAGS="-I$CONDA_PREFIX/include"
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
+
+pip install numba typer pyfaidx kipoiseq enformer-pytorch pybedtools
+
+git clone https://github.com/BradBalderson/DNACipher.git
+cd DNACipher
+pip install .
+```
 
 Usage 💻
 -----
 
-    dnacipher --help
-                                                                                                                                              
+```bash
+dnacipher --help
+ ```                                                                                                                                        
      Usage: dnacipher [OPTIONS] COMMAND [ARGS]...                                                                                                                                                                                                                                               
     ╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
     │ --install-completion          Install completion for the current shell.                                                                              │
@@ -98,25 +103,28 @@ Usage 💻
 ------
 ___
 <details>
-<summary>Step 0: Required data download: reference genome in order to load the sequences for variant effect inference</summary>
+<summary><strong>Step 0: 💽Required data download</strong>: reference genome in order to load the sequences for variant effect inference</summary>
 
 ***Most steps below need the reference genome in order to load the sequences for variant effect inference***
 
-    wget -O - http://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz | gunzip -c > hg38.fa
+```bash
+wget -O - http://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz | gunzip -c > hg38.fa
 
-    mamba install bioconda::samtools
-    samtools faidx hg38.fa
+mamba install bioconda::samtools
+samtools faidx hg38.fa
+ ```  
 
 </details>
 
 <details>
-<summary><strong>2.2.1 Inferring the effects for a single variant</strong></summary>
+<summary><strong>2.2.1 ☝️Inferring the effects for a single variant</strong></summary>
 
 The minimal inputs here are just the variant CHR, POS, REF, ALT of the variant, the celltypes and assays to infer the 
 effects for, the path to the fasta file and the prefix for the output files.
 
-    dnacipher infer-effects --help
-
+```bash
+dnacipher infer-effects --help
+ ```
      Usage: dnacipher infer-effects [OPTIONS] CHR_ POS REF ALT CELLTYPES ASSAYS                                                                              
                                     FASTA_FILE_PATH OUT_PREFIX                                                                                               
                                                                                                                                                              
@@ -156,34 +164,39 @@ effects for, the path to the fasta file and the prefix for the output files.
 
 To see the available cell types and assays available for inference, can run *dnacipher celltypes* or *dnacipher assays*.
 
-    out_prefix="WRN_eQTL_"
-    fasta_path="hg38.fa"
-    
-    chr_="chr8"
-    pos="31119876"
-    index_base="1"
-    ref="T"
-    alt="C"
-    seq_pos="31076838"
-    effect_start="31119776"
-    effect_end="31119976"
-    
-    echo "prostate gland" > celltypes.txt
-    echo "plus strand polyA plus RNA-seq,,minus strand polyA plus RNA-seq" > assays.txt
+```bash
+out_prefix="WRN_eQTL_"
+fasta_path="hg38.fa"
 
-    # Scores the effects for the varaint in the inputted contexts, with scoring referring to the SUM(ALT-REF) at the indicated positions
-    dnacipher infer-effects ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end}
+chr_="chr8"
+pos="31119876"
+index_base="1"
+ref="T"
+alt="C"
+seq_pos="31076838"
+effect_start="31119776"
+effect_end="31119976"
 
-    # Inferring effects for a single variant with signals along sequence outputted
-    dnacipher infer-effects ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end} -return_all
+echo "prostate gland" > celltypes.txt
+echo "plus strand polyA plus RNA-seq,,minus strand polyA plus RNA-seq" > assays.txt
+
+# Scores the effects for the varaint in the inputted contexts, with scoring referring to the SUM(ALT-REF) at the indicated positions
+dnacipher infer-effects ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end}
+```
+
+```bash
+# Inferring effects for a single variant with signals along sequence outputted
+dnacipher infer-effects ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end} -return_all
+ ```
 
 </details>
 
 <details>
 <summary><strong>2.2.2 🖼Plotting results for a single variant</strong></summary>
 
-    dnacipher plot-signals --help
-                                                                                                                                                             
+```bash
+dnacipher plot-signals --help
+ ```
      Usage: dnacipher plot-signals [OPTIONS] SIGNALS_PATH OUT_PREFIX                                                                                         
                                                                                                                                                              
      Plots DNACipher signal tracks and optional gene/cCRE annotations.                                                                                       
@@ -223,11 +236,13 @@ where the inferred difference occurs. The rows are at 128bp resolution bins, for
 
 The below code produces signal plots for the diff-signals shown above, which is also produced in Tutorial 1 of the Python API.
 
-    # OPTIONAL annotation downloads, to make visualization more compelling
-    wget https://downloads.wenglab.org/V3/GRCh38-cCREs.bed
-    wget -O - https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_26/gencode.v26.annotation.gtf.gz | gunzip -c > gencode.v26.annotation.gtf
-    
-    dnacipher plot-signals ${out_prefix}diff_signals.txt ${out_prefix} -gtf gencode.v26.annotation.gtf -cres GRCh38-cCREs.bed -chr ${chr_} -pos ${pos} -ref ${ref} -alt ${alt}
+```bash
+# OPTIONAL annotation downloads, to make visualization more compelling
+wget https://downloads.wenglab.org/V3/GRCh38-cCREs.bed
+wget -O - https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_26/gencode.v26.annotation.gtf.gz | gunzip -c > gencode.v26.annotation.gtf
+
+dnacipher plot-signals ${out_prefix}diff_signals.txt ${out_prefix} -gtf gencode.v26.annotation.gtf -cres GRCh38-cCREs.bed -chr ${chr_} -pos ${pos} -ref ${ref} -alt ${alt}
+```
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/WRN_eQTL_signals_plot.png" alt="DNACipher Tut1" width="1000">
 
 </details>
@@ -262,8 +277,9 @@ and START_EFFECT and END_EFFECT in order to measure different predicted effects 
 
 Inferring effects for multiple variants like this is achieved with the command below:
 
-    dnacipher infer-multivariant-effects --help
-                                                                                                                                                         
+```bash
+dnacipher infer-multivariant-effects --help
+``` 
      Usage: dnacipher infer-multivariant-effects [OPTIONS] VCF_PATH CELLTYPES                                                                                
                                                  ASSAYS FASTA_FILE_PATH OUT_PREFIX                                                                           
                                                                                                                                                              
@@ -308,10 +324,12 @@ Inferring effects for multiple variants like this is achieved with the command b
 
 Working example using provided tutorial data, this will take ~0.4 mins and ~4.2Gb of GPU RAM (A40 GPU), or ~41 min for CPU.
 
-    out_prefix="eQTLs_"
-    vcf_path="tutorials/data/gtex_variants_SMALL.vcf"
-    
-    dnacipher infer-multivariant-effects ${vcf_path} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base}
+```bash
+out_prefix="eQTLs_"
+vcf_path="tutorials/data/gtex_variants_SMALL.vcf"
+
+dnacipher infer-multivariant-effects ${vcf_path} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base}
+``` 
 
 The output file looks like this:
 
@@ -348,8 +366,9 @@ to decide what are the different variant types present at the locus for DVIM.
 <details>
 <summary><strong>2.3.1 🤹‍Stratifying the variants at the RUNX3 T1D GWAS loci into the common, rare, background variants and other variants</strong></summary>
 
-    dnacipher stratify-variants --help
-                                                                                                                                                             
+```bash
+dnacipher stratify-variants --help
+```  
      Usage: dnacipher stratify-variants [OPTIONS] SIGNAL_GWAS_STATS_PATH                                                                                     
                                         VAR_REF_COL VAR_ALT_COL VAR_LOC_COL P_COL                                                                            
                                         ALLELE_FREQ_COL OUT_PREFIX                                                                                           
@@ -392,10 +411,12 @@ to decide what are the different variant types present at the locus for DVIM.
 Now running the example at the RUNX3 T1D locus, note that the columns with the required information are specified on
 input to enable flexible input formats:
 
-    out_prefix="dvim_runx3_"
-    runx3_gwas_stats_path="tutorials/data/Chiou-2021-T1D-GWAS_RUNX3-signal_variant_stats.txt.gz"
-    
-    dnacipher stratify-variants ${runx3_gwas_stats_path} other_allele effect_allele base_pair_location p_value effect_allele_frequency ${out_prefix}
+```bash
+out_prefix="dvim_runx3_"
+runx3_gwas_stats_path="tutorials/data/Chiou-2021-T1D-GWAS_RUNX3-signal_variant_stats.txt.gz"
+
+dnacipher stratify-variants ${runx3_gwas_stats_path} other_allele effect_allele base_pair_location p_value effect_allele_frequency ${out_prefix}
+```  
 
 As output, this gives the same input file, but with an extra column 'variant_label' specifying the stratification of the variant:
 
@@ -412,8 +433,9 @@ The labels are explained in the ***dnacipher stratify-variants --help*** documen
 
 Easy to check this result with the following command:
 
+```bash
     dnacipher plot-variant-stats --help
-                                                                                                                                                             
+```                                                                                                                                                       
      Usage: dnacipher plot-variant-stats [OPTIONS] STRATIFIED_GWAS_STATS_PATH                                                                                
                                          Y_AXIS_COL COLOR_BY OUT_PREFIX                                                                                      
                                                                                                                                                              
@@ -438,7 +460,9 @@ Easy to check this result with the following command:
 
 We can now plot to see if the variant stratification make sense:
  
-    dnacipher plot-variant-stats -gtf gencode.v26.annotation.gtf -- ${out_prefix}stratified_gwas_stats.txt "-log10_pval" var_label ${out_prefix}
+```bash
+dnacipher plot-variant-stats -gtf gencode.v26.annotation.gtf -- ${out_prefix}stratified_gwas_stats.txt "-log10_pval" var_label ${out_prefix}
+```  
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_-log10_pval_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="500">
 
 </details>
@@ -448,36 +472,45 @@ We can now plot to see if the variant stratification make sense:
 
 Creating the input files required for the DNACipher variant effect inference for cell types and assays.
 
-    echo 'effector memory CD4-positive, alpha-beta T cell,,activated naive CD8-positive, alpha-beta T cell,,T-helper 17 cell,,T-cell,,CD8-positive, alpha-beta memory T cell,,effector memory CD8-positive, alpha-beta T cell,,pancreas,,peripheral blood mononuclear cell,,naive thymus-derived CD8-positive, alpha-beta T cell,,CD4-positive, alpha-beta memory T cell,,central memory CD8-positive, alpha-beta T cell,,naive thymus-derived CD4-positive, alpha-beta T cell,,body of pancreas,,CD4-positive, CD25-positive, alpha-beta regulatory T cell,,CD4-positive, alpha-beta T cell,,CD8-positive, alpha-beta T cell,,CD14-positive monocyte,,natural killer cell' > t1d_runx3_celltypes.txt
-    
-    echo 'ATAC-seq,,DNase-seq,,plus strand polyA minus RNA-seq,,plus strand polyA plus RNA-seq,,plus strand total RNA-seq,,signal of polyA plus RNA-seq' > t1d_runx3_assays.txt
+```bash
+echo 'effector memory CD4-positive, alpha-beta T cell,,activated naive CD8-positive, alpha-beta T cell,,T-helper 17 cell,,T-cell,,CD8-positive, alpha-beta memory T cell,,effector memory CD8-positive, alpha-beta T cell,,pancreas,,peripheral blood mononuclear cell,,naive thymus-derived CD8-positive, alpha-beta T cell,,CD4-positive, alpha-beta memory T cell,,central memory CD8-positive, alpha-beta T cell,,naive thymus-derived CD4-positive, alpha-beta T cell,,body of pancreas,,CD4-positive, CD25-positive, alpha-beta regulatory T cell,,CD4-positive, alpha-beta T cell,,CD8-positive, alpha-beta T cell,,CD14-positive monocyte,,natural killer cell' > t1d_runx3_celltypes.txt
+
+echo 'ATAC-seq,,DNase-seq,,plus strand polyA minus RNA-seq,,plus strand polyA plus RNA-seq,,plus strand total RNA-seq,,signal of polyA plus RNA-seq' > t1d_runx3_assays.txt
+```
 
 Need to re-arrange the frame to make sure is in format CHR, POS, REF, ALT, required by ***dnacipher infer-multivariant-effects***
 
-    awk -F'\t' 'NR==1 || $NF != "other"' ${out_prefix}stratified_gwas_stats.txt > ${out_prefix}selected_gwas_stats.txt
-    
-    awk 'BEGIN {OFS="\t"} {print $3, $4, $6, $5, $NF}' ${out_prefix}selected_gwas_stats.txt > ${out_prefix}selected_gwas_stats.reformatted.txt
-    awk 'BEGIN {OFS=FS="\t"} NR==1 || $1 ~ /^chr/ {print $0; next} { $1 = "chr" $1; print }' ${out_prefix}selected_gwas_stats.reformatted.txt > ${out_prefix}selected_gwas_stats.reformatted.chr_named.txt
+```bash
+awk -F'\t' 'NR==1 || $NF != "other"' ${out_prefix}stratified_gwas_stats.txt > ${out_prefix}selected_gwas_stats.txt
 
-IMPORTANT need to set the seq_pos column, so that each variant is being scored consistently for DVIM and comparing variant effects in a apples-to-apples fashion.
+awk 'BEGIN {OFS="\t"} {print $3, $4, $6, $5, $NF}' ${out_prefix}selected_gwas_stats.txt > ${out_prefix}selected_gwas_stats.reformatted.txt
+awk 'BEGIN {OFS=FS="\t"} NR==1 || $1 ~ /^chr/ {print $0; next} { $1 = "chr" $1; print }' ${out_prefix}selected_gwas_stats.reformatted.txt > ${out_prefix}selected_gwas_stats.reformatted.chr_named.txt
+```
 
-    runx3_stats=${out_prefix}selected_gwas_stats.reformatted.chr_named.txt
-    runx3_stats_dvim=${out_prefix}selected_gwas_stats.reformatted.chr_named.seq_pos.txt
-    
-    awk 'BEGIN {OFS=FS="\t"} NR==1 {print $0, "seq_pos"; next} {print $0, "24970252"}' ${runx3_stats} > ${runx3_stats_dvim}
+👉***IMPORTANT*** need to set the seq_pos column, so that each variant is being scored consistently for DVIM and comparing variant effects in a apples-to-apples fashion.
+
+```bash
+runx3_stats=${out_prefix}selected_gwas_stats.reformatted.chr_named.txt
+runx3_stats_dvim=${out_prefix}selected_gwas_stats.reformatted.chr_named.seq_pos.txt
+
+awk 'BEGIN {OFS=FS="\t"} NR==1 {print $0, "seq_pos"; next} {print $0, "24970252"}' ${runx3_stats} > ${runx3_stats_dvim}
+```
 
 Now running the dnacipher effect inference for these variants, which will then compare statistically.
 ~5mins and 4.2Gb of GPU RAM on A40 GPU to infer effects across 543 variants and 108 contexts.
 
-    dnacipher infer-multivariant-effects ${runx3_stats_dvim} t1d_runx3_celltypes.txt t1d_runx3_assays.txt ${fasta_path} ${out_prefix} -i 1 -seq_pos_col seq_pos
-
+```bash
+dnacipher infer-multivariant-effects ${runx3_stats_dvim} t1d_runx3_celltypes.txt t1d_runx3_assays.txt ${fasta_path} ${out_prefix} -i 1 -seq_pos_col seq_pos
+```
+    
 </details>
 
 <details>
 <summary><strong>2.3.4 👩‍💻Calculating variant-effect p-values</strong></summary>
 
-    dnacipher effect-pvals --help
-                                                                                                                                                             
+```bash
+dnacipher effect-pvals --help
+``` 
      Usage: dnacipher effect-pvals [OPTIONS] SELECTED_GWAS_STATS_PATH                                                                                        
                                    PRED_EFFECTS_PATH OUT_PREFIX                                                                                              
                                                                                                                                                              
@@ -514,9 +547,11 @@ predicted effect of the candidate common and rare variants to determine p-values
 mean and std of the background variant effects as the null distribution. 
 Very fast due to Numba just-in-time (JIT) C-compilation (~0.1min for 10,000 boot-straps).
 
-    runx3_effects=${out_prefix}var_context_effects.txt
-    
-    dnacipher effect-pvals ${runx3_stats} ${runx3_effects} ${out_prefix}
+```bash
+runx3_effects=${out_prefix}var_context_effects.txt
+
+dnacipher effect-pvals ${runx3_stats} ${runx3_effects} ${out_prefix}
+``` 
 
 The output files include {out_prefix}_boot_pvals.txt and {out_prefix}_boot_counts.txt. Former is the p-values of 
 the predicted molecular effect significance. Output looks like this:
@@ -535,8 +570,9 @@ are the p-values for the inferred effect being significantly different from the 
 
 ***Now we can call the 'impact'💥 variants, setting our desired fold-change and p-value cutoff!***
 
-    dnacipher impact-map --help
-                                                                                                                                                             
+```bash
+dnacipher impact-map --help
+```  
      Usage: dnacipher impact-map [OPTIONS] SELECTED_GWAS_STATS_PATH                                                                                          
                                  PRED_EFFECTS_PATH BOOT_PVALS_PATH OUT_PREFIX                                                                                
                                                                                                                                                              
@@ -569,9 +605,11 @@ are the p-values for the inferred effect being significantly different from the 
 Now for the RUNX3 example, inputting the original stats file, the predicted effects for each variant, and p-values.
 Run time ~10secs.
 
-    runx3_pvals=${out_prefix}boot_pvals.txt
-    
-    dnacipher impact-map ${runx3_stats} ${runx3_effects} ${runx3_pvals} ${out_prefix} -fc 2
+```bash
+runx3_pvals=${out_prefix}boot_pvals.txt
+
+dnacipher impact-map ${runx3_stats} ${runx3_effects} ${runx3_pvals} ${out_prefix} -fc 2
+```  
 
 Most important output is {runx3_stats}.impact_calls.txt, which specifies which of the variants are 'impact' variants and
 the number of significant effects they have:
@@ -590,15 +628,21 @@ the number of significant effects they have:
 
 Can now-replot the variant stats, this time with the n_sig_effects to show the impact variants!
 
-    dnacipher plot-variant-stats -gtf gencode.v26.annotation.gtf -- ${out_prefix}selected_gwas_stats.reformatted.chr_named.impact_calls.txt n_sig_effects var_label ${out_prefix}
+```bash
+dnacipher plot-variant-stats -gtf gencode.v26.annotation.gtf -- ${out_prefix}selected_gwas_stats.reformatted.chr_named.impact_calls.txt n_sig_effects var_label ${out_prefix}
+```  
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_n_sig_effects_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="500">
 
 Also volcano plots to assess the cutoffs used to call the impact variants:
 
-    dnacipher plot-volcano candidate ${runx3_stats} ${out_prefix}sig_effects.txt ${out_prefix}fold_changes.txt ${runx3_pvals} ${out_prefix}
+```bash
+dnacipher plot-volcano candidate ${runx3_stats} ${out_prefix}sig_effects.txt ${out_prefix}fold_changes.txt ${runx3_pvals} ${out_prefix}
+```  
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_candidate_volcano.png" alt="DVIM RUNX3 locus" width="500">
 
-    dnacipher plot-volcano rare ${runx3_stats} ${out_prefix}sig_effects.txt ${out_prefix}fold_changes.txt ${runx3_pvals} ${out_prefix}
+```bash
+dnacipher plot-volcano rare ${runx3_stats} ${out_prefix}sig_effects.txt ${out_prefix}fold_changes.txt ${runx3_pvals} ${out_prefix}
+```  
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_rare_volcano.png" alt="DVIM RUNX3 locus" width="500">
 
 </details>
