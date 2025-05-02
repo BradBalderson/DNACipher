@@ -20,14 +20,14 @@ from . import dna_cipher_plotting as dnapl
 
 app = typer.Typer(pretty_exceptions_short=False)
 
-version = '1.0.0'
-version_name = '💥First Impact'
+__version__ = '1.0.0'
+__version_name__ = '💥First Impact'
 
 @app.command()
 def version():
     """Prints the DNACipher version."""
 
-    print(f"DNACipher {version}: {version_name}", file=sys.stdout, flush=True)
+    print(f"DNACipher {__version__}: {__version_name__}", file=sys.stdout, flush=True)
 
 @app.command()
 def device():
