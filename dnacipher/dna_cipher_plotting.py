@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 def plot_signals(signals_normed, variant_loc=None,
                  exper_colors=None, color_map='Accent', label_size=9, fontweight=700, y_step=None,
-                 title='DNACipher track predictions', plot_delta=False, figsize=None,
+                 title='DNACipher track predictions', plot_delta=False, figsize=None, var_linewidth=1,
                  genes=None, regions=None, regions_color='gold', region_names='cCREs',
                  xlabel=None, xtick_freq=200, plot_origins=True, show=True):
 
@@ -89,7 +89,7 @@ def plot_signals(signals_normed, variant_loc=None,
 
         variant_pos = ((variant_loc[1] - start) / (end - start)) * signals_normed.shape[0]
 
-        plt.vlines(variant_pos, y_start, y_end, color='k')
+        plt.vlines(variant_pos, y_start, y_end, color='k', linewidth=var_linewidth)
         plt.text(variant_pos, y_start, f"{variant_loc[2]}>{variant_loc[3]}",
                  c='k', fontsize=label_size * 0.8,
                  fontweight=fontweight)
