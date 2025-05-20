@@ -20,7 +20,7 @@ from . import dna_cipher_plotting as dnapl
 
 app = typer.Typer(pretty_exceptions_short=False)
 
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 __version_name__ = '💥First Impact'
 
 @app.command()

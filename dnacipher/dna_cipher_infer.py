@@ -449,7 +449,7 @@ class DNACipher():
         seq_bins_inrange = None
         if type(effect_region)!=type(None): # Only calculate effects for this range of the sequence.
             seq_bins_inrange = np.logical_and(seq_bins[:, 0] >= effect_region[0],
-                                              seq_bins[:, 0] < effect_region[1])
+                                              seq_bins[:, 0] <= effect_region[1])
             if sum(seq_bins_inrange) == 0: # No intersect with the outputted predictions, doesn't make sense.
                 raise Exception(f"Inputted effect_region ({effect_region}) does not intersect with the region of the "
                                 f"sequence for which signals can be inferred ({(seq_bins[0,0], seq_bins[-1,-1])})."
@@ -644,7 +644,7 @@ class DNACipher():
 
         effect_region = None
         if type(effect_region_cols)!=type(None):
-            effect_regions = vcf_df[effect_region_cols].values.astype(int)
+            effect_regions = vcf_df.loc[:, effect_region_cols].values.astype(int)
 
         # Need to determine a list of cell types and assays that will be inferred, since will output a flattened
         # dataframe.
