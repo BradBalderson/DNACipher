@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='DNACipher',
-    version='1.0.0',
+    version='1.0.2',
     author='Brad Balderson',
     author_email='bbalderson@salk.edu',
     packages=find_packages(),

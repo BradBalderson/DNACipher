@@ -448,8 +448,20 @@ class DNACipher():
         subset_output_preds = False
         seq_bins_inrange = None
         if type(effect_region)!=type(None): # Only calculate effects for this range of the sequence.
-            seq_bins_inrange = np.logical_and(seq_bins[:, 0] >= effect_region[0],
-                                              seq_bins[:, 0] <= effect_region[1])
+
+            # NEW logic, as of V1.0.2
+            diff_start = seq_bins - effect_region[0]
+            diff_end = seq_bins - effect_region[1]
+            
+            upstream_start = diff_start[:,1] > 0 #END of the bin is greater than start of effect region.
+            downstream_end = diff_end[:,0] < 0 #START of the bin is less than end of effect region.
+
+            # The bin intersects the effect region by atleast one bp.
+            seq_bins_inrange = np.logical_and(upstream_start, downstream_end)
+            
+            # OLD logic, does not effectively account for SMALL effect regions that may occur in only one bin.
+            # seq_bins_inrange = np.logical_and(seq_bins[:, 0] >= effect_region[0],
+            #                                   seq_bins[:, 0] <= effect_region[1])
             if sum(seq_bins_inrange) == 0: # No intersect with the outputted predictions, doesn't make sense.
                 raise Exception(f"Inputted effect_region ({effect_region}) does not intersect with the region of the "
                                 f"sequence for which signals can be inferred ({(seq_bins[0,0], seq_bins[-1,-1])})."
