@@ -332,11 +332,40 @@ class DNACipher():
 
         return ref_features, alt_features, ref_seq, alt_seq, seq_range, seq_bins
 
+    def score_effects(self, scoring_method, ref_preds, alt_preds, subset_output_preds, seq_bins_inrange):
+        """Scores the effects of the REF and ALT predictions."""
+
+        # Need to subset the predicted effects to use when scoring!
+        if subset_output_preds: 
+            alt_preds = alt_preds[seq_bins_inrange, :]
+            ref_preds = ref_preds[seq_bins_inrange, :]
+
+        if scoring_method=="signed_sum_abs":
+            # using sum-abs-signed method to score variants
+            diff = torch.abs((alt_preds - ref_preds)).sum(axis=0).cpu().numpy()
+            sign = (alt_preds - ref_preds).sum(axis=0).cpu().numpy()
+    
+            nonzero = np.abs(sign) > 0
+            sign[nonzero] = sign[nonzero] / np.abs(sign[nonzero])
+            diff = diff * sign
+
+        elif scoring_method=="sum_logfc":
+            
+            ref_sum = ref_preds.sum(axis=0).cpu().numpy()
+            alt_sum = alt_preds.sum(axis=0).cpu().numpy()
+
+            diff = alt_sum - ref_sum
+
+        else:
+            raise Exception(f"Unsupported input option, scoring_method={score_options}")
+
+        return diff
+
     def infer_effects(self, chr_, pos, ref, alt, celltypes, assays,
                       index_base=0, correct_ref=False, seq_pos = None, effect_region = None,
                       batch_size=None, batch_by = None,
                       all_combinations=True,
-                      return_all = False,
+                      return_all = False, scoring_method='signed_sum_abs',
                       verbose=False,
                      ):
         """ Infers effects across celltypes and assays. Using batching strategy to circumvent high memory requirements.
@@ -381,6 +410,10 @@ class DNACipher():
         return_all: bool
             True to return the signals across the ref and alt sequences, the ref and alt sequences, and the latent
             genome representation of the ref and alt sequences.
+        scoring_method: str
+            Refers to how to compare the ref and alt prediction to score variant effects. Supported methods are 
+            "sign_sum_abs" which will take the SUM(|ALT-REF|)*{-1 if SUM(ALT-REF) < 0}.
+            "sum_logfc" which will score as log2( (SUM(ALT) / SUM(REF)) + 1).
         verbose: bool
             True for detailed printing of progress.
 
@@ -395,6 +428,12 @@ class DNACipher():
             raise Exception(
                 f"Unsupported input option, batch_by={batch_by}, but only these options supported: {batch_options}")
 
+        # Checking scoring method
+        score_options = ["sign_sum_abs", "sum_logfc"]
+        if scoring_method not in score_options:
+            raise Exception(
+                f"Unsupported input option, scoring_method={score_options}, but only these options supported: {score_options}")
+        
         # Getting the cell type-assay inputs
         if type(celltypes) == str:
             celltypes = [celltypes]
@@ -561,21 +600,8 @@ class DNACipher():
             ref_preds = torch.concat(ref_batch_preds, dim=batch_axis)
             alt_preds = torch.concat(alt_batch_preds, dim=batch_axis)
 
-            # using sum-abs-signed method to score variants
-            if not subset_output_preds: # Already have the relevant set of predictions we want to infer effects for
-                diff = torch.abs((alt_preds - ref_preds)).sum(axis=0).cpu().numpy()
-                sign = (alt_preds - ref_preds).sum(axis=0).cpu().numpy()
-
-            else: # Need to subset to the relevant positions
-                alt_preds_sub = alt_preds[seq_bins_inrange, :]
-                ref_preds_sub = ref_preds[seq_bins_inrange, :]
-
-                diff = torch.abs((alt_preds_sub - ref_preds_sub)).sum(axis=0).cpu().numpy()
-                sign = (alt_preds_sub - ref_preds_sub).sum(axis=0).cpu().numpy()
-
-        nonzero = np.abs(sign) > 0
-        sign[nonzero] = sign[nonzero] / np.abs(sign[nonzero])
-        diff = diff * sign
+            # Scores across contexts comparing ALT to REF predictions.
+            diff = self.score_effects(scoring_method, ref_preds, alt_preds, subset_output_preds, seq_bins_inrange)
 
         #### Stratifying differences to celltype, assays. Taking into account what celltype, assay were inputted.
         celltype_names_unique = list( np.unique( celltype_names ) )
@@ -609,7 +635,7 @@ class DNACipher():
 
     def infer_multivariant_effects(self, vcf_df, celltypes, assays,
                                     index_base=0, correct_ref=False, seq_pos_col=None, effect_region_cols=None,
-                                    batch_size=900, batch_by=None, all_combinations=True,
+                                    batch_size=900, batch_by=None, all_combinations=True, scoring_method='signed_sum_abs',
                                     verbose=True, log_file=sys.stdout):
         """Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per
             variant, and predicted effect sizes across the columns for all celltype/assay combinations.
@@ -642,6 +668,10 @@ class DNACipher():
             Specifies columns in the inputted data frame, with the first specifying the start position (in genome coords)
             to measure the effect, and the second specifying end position (in genome coords) to measure the effect for
             the given variant in the sequence field-of-view across all the different celltype-assays.
+        scoring_method: str
+            Refers to how to compare the ref and alt prediction to score variant effects. Supported methods are 
+            "sign_sum_abs" which will take the SUM(|ALT-REF|)*{-1 if SUM(ALT-REF) < 0}.
+            "sum_logfc" which will score as log2( (SUM(ALT) / SUM(REF)) + 1).
         verbose: bool
             True for detailed printing of progress.
 
@@ -696,7 +726,7 @@ class DNACipher():
                                                  index_base=index_base, correct_ref=correct_ref,
                                                  batch_size=batch_size, batch_by=batch_by,
                                                  seq_pos=seq_pos, effect_region=effect_region,
-                                                 all_combinations=all_combinations,
+                                                 all_combinations=all_combinations, scoring_method=scoring_method,
                                                  verbose=False)
             variant_effects_flat = variant_effects_df.values.ravel()
 

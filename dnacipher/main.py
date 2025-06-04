@@ -74,6 +74,7 @@ def infer_effects(
     batch_by: Annotated[Optional[str], typer.Option( "-by", "-batch_by", help=( "Indicates how to batch the data when fed into the model, either by 'experiment', 'sequence', or None. If None, will automatically choose whichever is the larger axis.") )] = None,
     all_combinations: Annotated[bool, typer.Option("-all_combinations/-no-all_combinations", help="Generate predicetions for all combinations of inputted cell types and assays.")] = True,
     return_all: Annotated[bool, typer.Option("-return_all/-no-return_all", help="Return the signals across the ref and alt sequences")] = False,
+    scoring_method: Annotated[str, typer.Option("-sm", "-scoring_method", help="Refers to how to compare the ref and alt prediction to score variant effects. Supported methods are 'sign_sum_abs' which will take the SUM(|ALT-REF|)*{-1 if SUM(ALT-REF) < 0}. 'sum_logfc' which will score as log2( (SUM(ALT) / SUM(REF)) + 1).")] = "sign_sum_abs",
     verbose: Annotated[bool, typer.Option("-verbose/-quiet", help="Enable or disable verbose output")] = True
                  ):
     """ Infers a single varaints effects across celltypes and assays, and optionally across the sequence.
@@ -91,7 +92,7 @@ def infer_effects(
                                     dnacipher.infer_effects(chr_, pos, ref, alt, celltypes, assays,
                                               index_base=index_base, correct_ref=correct_ref, seq_pos=seq_pos, 
                                               effect_region=effect_region, batch_size=batch_size, batch_by=batch_by,
-                                              all_combinations=all_combinations, verbose=verbose,
+                                              all_combinations=all_combinations, scoring_method=scoring_method, verbose=verbose,
                                               return_all=True, 
                                              )
         
@@ -117,7 +118,7 @@ def infer_effects(
         context_effects = dnacipher.infer_effects(chr_, pos, ref, alt, celltypes, assays,
                                               index_base=index_base, correct_ref=correct_ref, seq_pos=seq_pos, 
                                               effect_region=effect_region, batch_size=batch_size, batch_by=batch_by,
-                                              all_combinations=all_combinations, verbose=verbose,
+                                              all_combinations=all_combinations, scoring_method=scoring_method, verbose=verbose,
                                               return_all=False, 
                                              )
         
@@ -144,6 +145,7 @@ def infer_multivariant_effects(
     batch_size: Annotated[Optional[int], typer.Option( "-b", "-batch_size", help=( "How many effects to infer at a time.") )] = None,
     batch_by: Annotated[Optional[str], typer.Option( "-by", "-batch_by", help=( "Indicates how to batch the data when fed into the model, either by 'experiment', 'sequence', or None. If None, will automatically choose whichever is the larger axis.") )] = None,
     all_combinations: Annotated[bool, typer.Option("-all_combinations/-no-all_combinations", help="Generate predicetions for all combinations of inputted cell types and assays.")] = True,
+    scoring_method: Annotated[str, typer.Option("-sm", "-scoring_method", help="Refers to how to compare the ref and alt prediction to score variant effects. Supported methods are 'sign_sum_abs' which will take the SUM(|ALT-REF|)*{-1 if SUM(ALT-REF) < 0}. 'sum_logfc' which will score as log2( (SUM(ALT) / SUM(REF)) + 1).")] = "sign_sum_abs",
     verbose: Annotated[bool, typer.Option("-verbose/-quiet", help="Enable or disable verbose output")] = True
      ):
     """ Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per
@@ -164,7 +166,7 @@ def infer_multivariant_effects(
     var_pred_effects = dnacipher.infer_multivariant_effects(var_df, celltypes, assays,
                                               index_base=index_base, correct_ref=correct_ref, seq_pos_col=seq_pos_col, 
                                               effect_region_cols=effect_region_cols, batch_size=batch_size, batch_by=batch_by,
-                                              all_combinations=all_combinations, verbose=verbose,
+                                              all_combinations=all_combinations, scoring_method=scoring_method, verbose=verbose,
                                              )
 
     out_path = f"{out_prefix}var_context_effects.txt"
