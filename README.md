@@ -686,7 +686,9 @@ dnacipher plot-volcano rare ${runx3_stats} ${out_prefix}sig_effects.txt ${out_pr
 Citation 🙇‍
 --------
 
-Coming soon..
+***Comprehensive molecular impact mapping of common and rare variants at GWAS loci.***
+Brad Balderson, Sanjana Tule, Mei-Lin Okino, William JF Rieger, Sierra Corban, Jeff Jaureguy, Nathan Palpant, Kyle J. Gaulton, Mikael Boden, Graham McVicker
+bioRxiv 2025.06.05.658079; doi: https://doi.org/10.1101/2025.06.05.658079
 
 Contact ☎
 -------
