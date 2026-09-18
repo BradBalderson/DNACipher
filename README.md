@@ -47,7 +47,9 @@ Because of the complexity of this step, the tutorial is kept separately. The fol
 the model weights from pre-trained DNACipher (DNACipher-Enformer by default, DNACipher-Borzoi also available) can be
 used for variant effect prediction and DVIM analysis.
 
+See:
 
+    Train.md
 
 2.1 Installation for inference from pre-trained DNACipher
 -------
