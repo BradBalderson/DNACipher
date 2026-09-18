@@ -1,0 +1,15 @@
+# Required arguments, must always be specified in this file.
+n_celltype_factors: 128
+n_assay_factors: 256
+n_seq_factors: 128
+n_layers: 3
+n_nodes: 512
+
+# Optional arguments, can be deleted, and will default to the training used in paper, which is the defaults shown below.
+layer_norm: True
+activation_function: gelu
+
+# softplus the output, unstead of relu for previous version...
+out_transform: softplus
+lr_scheduler: False # Whether to utilize an LR scheduler on plateau.
+

@@ -348,14 +348,16 @@ def plot_variant_stats(locus_gwas_stats, y_axis_col, color_by, color_dict=None, 
     midpoint = np.mean(ylims)
     
     xlims = plt.xlim()
-    
-    chromosome = locus_gwas_stats[ var_chrom_col ].values[0]
-    if type(gtf_df) != type(None):
-        chromosome = f"chr{ str(chromosome).strip('chr').strip('chromosome') }"
-        plot_genes_in_region(gtf_df, chromosome, xlims[0], xlims[1], y_delta=midpoint)
+
+    if type(var_chrom_col)!=type(None):
+        chromosome = locus_gwas_stats[ var_chrom_col ].values[0]
+        if type(gtf_df) != type(None):
+            chromosome = f"chr{ str(chromosome).strip('chr').strip('chromosome') }"
+            plot_genes_in_region(gtf_df, chromosome, xlims[0], xlims[1], y_delta=midpoint)
+
+        plt.xlabel(chromosome)
 
     plt.ylabel( y_axis_col )
-    plt.xlabel( chromosome )
     
 def plot_volcano(plot_label, selected_gwas_stats, sig_effects, foldchange_effects, boot_pvals_df,
                 down_color='dodgerblue', up_color='tomato', nonsig_color='grey', alpha=.4, show=True):

@@ -3,14 +3,10 @@
 
 import sys
 
-import time
-import math
 import numpy as np
 import pandas as pd
 
 from numba import jit
-
-from scipy.stats import norm
 
 def stratify_variants(signal_gwas_stats, 
                       var_ref_col='other_allele', var_alt_col='effect_allele', var_loc_col='base_pair_location',
@@ -138,6 +134,147 @@ def stratify_variants(signal_gwas_stats,
 
     return selected_gwas_stats
 
+def impact_map(selected_gwas_stats, selected_pred_effects,
+               cpu=3, p_cutoff=0.05, min_std=0.01, n_boots=10_000, verbose=True, pseudocount=1, fc_cutoff=0):
+    """ Runs the impact mapping of the variants, with the loci specified by the seq_pos column
+    """
+
+    # All the loci are in these files, and the variant effect pvals assumes one locus, so need to separate.
+    loci = selected_gwas_stats['seq_pos'].values
+    loci_to_firstindex = {locus: index for index, locus in enumerate(loci)}
+    cpu = min([cpu, len(loci_to_firstindex)])
+
+    # Just confirming assumption the variants are grouped by the locus, which would enable outputting the results
+    # in the same order of the inputs.
+    indices = list(loci_to_firstindex.values())
+    if not np.all([indices[i]>indices[i-1] for i in range(1, len(indices))]):
+        raise Exception("Inputted variants are not ordered by locus, and so the outputs from this call will be a different order than the inputs..")
+
+    # Getting a mapping from loci to index so we know the ordering
+    loci_set = list( loci_to_firstindex.keys() )
+    loci_per_thread = np.array_split(np.array(loci_set), cpu)
+
+    ###### Now running the loci in parallel:
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+
+    from functools import partial
+    partial_func = partial(impact_map_select_loci, p_cutoff, min_std, n_boots, verbose, pseudocount, fc_cutoff,
+                           selected_gwas_stats, selected_pred_effects
+                           )
+
+    with ProcessPoolExecutor(max_workers=cpu) as executor:
+
+        futures = {executor.submit(partial_func, loci): index for index, loci in enumerate(loci_per_thread)}
+        impact_results = {}
+        n_threads_finished = 0
+
+        for future in as_completed(futures):
+            try:
+                result = future.result()  # will re-raise exceptions from worker
+                impact_results.update( result )
+
+                n_threads_finished += 1
+                if verbose:
+                    print(f"Thread {n_threads_finished} / {cpu} finished.", file=sys.stdout)
+
+            except Exception as e:
+                threadi = futures[future]
+                raise Exception(f"Error in {threadi} {e}.")
+
+    # Compiling all the results from across threads.
+    result_dfs_lists = [[], [], [], [], [], []] #boot_pvals_df, boot_counts_df, sig_effects, foldchange_effects, min_common_pval, min_rare_pval
+    for locus in loci_set:
+
+        result_dfs = impact_results[locus]
+        for resi, result_df in enumerate( result_dfs ):
+
+            result_dfs_lists[resi].append( result_df )
+
+    boot_pvals_df = pd.concat( result_dfs_lists[0] )
+    boot_counts_df = pd.concat( result_dfs_lists[1] )
+    sig_effects = pd.concat( result_dfs_lists[2] )
+    foldchange_effects = pd.concat( result_dfs_lists[3] )
+
+    ### Calling the impact variants within loci
+    n_sig_effects = (sig_effects.values).sum(axis=1)
+    selected_gwas_stats['n_sig_effects'] = n_sig_effects
+    selected_gwas_stats['impact_variant'] = n_sig_effects > 0
+
+    ########## Now adding between loci MHT, so really user should just take the impact variants at significant loci
+    ########## for respective variant type.
+    ### Now adjusting for multiple hypothesis testing across loci, similar to eQTLs, except don't have LD problem:
+    min_common_pvals = result_dfs_lists[4]
+    min_rare_pvals = result_dfs_lists[5]
+
+    from statsmodels.stats.multitest import multipletests
+    common_min_signal_pvals_adj = multipletests(min_common_pvals, method='fdr_bh')[1]
+    rare_min_signal_pvals_adj = multipletests(min_rare_pvals, method='fdr_bh')[1]
+
+    # Adding this locus information to the results.
+    locus_common_pvals = dict(zip(loci_set, min_common_pvals))
+    locus_rare_pvals = dict(zip(loci_set, min_rare_pvals))
+    locus_common_padj = dict(zip(loci_set, common_min_signal_pvals_adj))
+    locus_rare_padj = dict(zip(loci_set, rare_min_signal_pvals_adj))
+
+    selected_gwas_stats['locus_common_pval'] = [locus_common_pvals[locus] for locus in loci]
+    selected_gwas_stats['locus_rare_pval'] = [locus_rare_pvals[locus] for locus in loci]
+    selected_gwas_stats['locus_common_padj'] = [locus_common_padj[locus] for locus in loci]
+    selected_gwas_stats['locus_rare_padj'] = [locus_rare_padj[locus] for locus in loci]
+
+    return selected_gwas_stats, sig_effects, foldchange_effects, boot_pvals_df, boot_counts_df
+
+def impact_map_select_loci(p_cutoff, min_std, n_boots, verbose, pseudocount, fc_cutoff,
+                          selected_gwas_stats, selected_pred_effects, loci,
+                         ):
+    """Performs the impact mapping for just one locus.
+
+    Meant to be run in parallel, with the note that any objects parsed will need to be pickled to start a new thread, so
+    to make this minimalist will import necessary functions within the function itself.
+    """
+
+    import time
+
+    start_ = time.time()
+
+    impact_results = {}
+    for locus_i, locus in enumerate( loci ):
+
+        locus_indices = np.where(selected_gwas_stats['seq_pos'].values == locus)[0]
+
+        locus_gwas_stats = selected_gwas_stats.iloc[locus_indices, :]
+        locus_pred_effects = selected_pred_effects.iloc[locus_indices, :]
+
+        boot_pvals_df, boot_counts_df = calc_variant_effect_pvals(locus_gwas_stats, locus_pred_effects,
+                                                                       p_cutoff=p_cutoff, min_std=min_std,
+                                                                       n_boots=n_boots, verbosity=False,
+                                                                       pseudocount=pseudocount)
+
+        sig_effects, foldchange_effects = call_sig_effects(locus_gwas_stats, locus_pred_effects, boot_pvals_df,
+                                                           p_cutoff=p_cutoff, fc_cutoff=fc_cutoff)
+
+        #### Recording the minimum p-value for the locus, for common versus rare variants:
+        common_indices = np.where(locus_gwas_stats['var_label'].values == 'candidate')[0]
+        rare_indices = np.where(locus_gwas_stats['var_label'].values == 'rare')[0]
+        if len(common_indices) > 0:
+            min_common_pval = float(np.min(boot_pvals_df.values[common_indices, :]))
+        else:
+            min_common_pval = 1
+
+        if len(rare_indices) > 0:
+            min_rare_pval = float(np.min(boot_pvals_df.values[rare_indices, :]))
+        else:
+            min_rare_pval = 1
+
+        impact_results[locus] = [boot_pvals_df, boot_counts_df, sig_effects, foldchange_effects, min_common_pval,
+                                                                                                          min_rare_pval]
+
+        if verbose:
+            end_ = time.time()
+            print(f"Finished impact mapping {locus_i} / {len(loci)} loci in {round((end_-start_)/60, 3)}mins on this thread.\n",
+                  file=sys.stdout, flush=True)
+
+    return impact_results
+
 def calc_variant_effect_pvals(selected_gwas_stats, pred_effects, n_boots=10_000, p_cutoff=0.05, pseudocount=1,
                                          min_std=0.01, verbosity=1):
     """ Calculates variant effect p-values compared to non-significant background variants. Works by boot-strapping the
@@ -163,6 +300,10 @@ def calc_variant_effect_pvals(selected_gwas_stats, pred_effects, n_boots=10_000,
     verbosity:
         Verbosity levels. 0 errors only, 1 prints processing progress, 2 prints debugging information.
     """
+
+    import time
+    import math
+    from scipy.stats import norm
     
     # Loading the necessary input files.
     if verbosity >= 1:
@@ -248,7 +389,8 @@ def calc_variant_effect_pvals(selected_gwas_stats, pred_effects, n_boots=10_000,
 
 @jit(nopython=True)
 def fast_bootstrap(boot_counts, candidate_rare_indices, candidate_rare_abs_effects, bg_abs_effects, 
-                   critical_value, min_std, random_number_generator):
+                   critical_value, min_std, random_number_generator,
+                   ):
     """ Fast bootstrapping operation with numba.
     """
     n_bg_variants = bg_abs_effects.shape[0]
