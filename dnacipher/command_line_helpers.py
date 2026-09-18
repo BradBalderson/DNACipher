@@ -12,9 +12,6 @@ import numpy as np
 import pandas as pd
 
 from . import dna_cipher_infer as dnaci
-from . import dna_cipher_model as dnacm
-from . import dna_cipher_plotting as dnapl
-from . import deep_variant_impact_mapping as dvim
 
 def get_best_device():
     """Gets best device available to run DNACipher"""

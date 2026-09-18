@@ -212,8 +212,8 @@ def stratify_variants(
     
 @app.command()
 def effect_pvals(
-selected_gwas_stats_path: Annotated[str, typer.Argument(help="Path to GWAS summary statistics for each of the variants at a GWAS locus, with a column 'var_labels' indicating candidate, rare, and background variants. Each row is a variant.")],
-pred_effects_path: Annotated[str, typer.Argument(help="Path to predicted effects for each variant. Each row is a variant, and each column is a predicted molecular effect for that variant.")],
+    selected_gwas_stats_path: Annotated[str, typer.Argument(help="Path to GWAS summary statistics for each of the variants at a GWAS locus, with a column 'var_labels' indicating candidate, rare, and background variants. Each row is a variant.")],
+    pred_effects_path: Annotated[str, typer.Argument(help="Path to predicted effects for each variant. Each row is a variant, and each column is a predicted molecular effect for that variant.")],
     out_prefix: Annotated[str, typer.Argument(help="Prefix for all outputs files.")],
     n_boots: Annotated[Optional[int], typer.Option( "-nb", "-n_boots", help=( "No. of boot-straps of re-selecting the background variants.") )] = 10_000,
     p_cutoff: Annotated[Optional[float], typer.Option( "-pc", "-p_cutoff", help="P-value below which a non-background variant predicted molecular effect is considered significantly different to the background vars.")] = 0.05,
@@ -245,9 +245,9 @@ pred_effects_path: Annotated[str, typer.Argument(help="Path to predicted effects
 
 @app.command()
 def impact_map(
-selected_gwas_stats_path: Annotated[str, typer.Argument(help="Path to GWAS summary statistics for each of the variants at a GWAS locus, with a column 'var_labels' indicating candidate, rare, and background variants. Each row is a variant.")],
-pred_effects_path: Annotated[str, typer.Argument(help="Path to predicted effects for each variant. Each row is a variant, and each column is a predicted molecular effect for that variant.")],
-boot_pvals_path: Annotated[str, typer.Argument(help="Path to predicted effects for each variant. Each row is a variant, and each column is a predicted molecular effect for that variant.")],
+    selected_gwas_stats_path: Annotated[str, typer.Argument(help="Path to GWAS summary statistics for each of the variants at a GWAS locus, with a column 'var_labels' indicating candidate, rare, and background variants. Each row is a variant.")],
+    pred_effects_path: Annotated[str, typer.Argument(help="Path to predicted effects for each variant. Each row is a variant, and each column is a predicted molecular effect for that variant.")],
+    boot_pvals_path: Annotated[str, typer.Argument(help="Path to predicted effects for each variant. Each row is a variant, and each column is a predicted molecular effect for that variant.")],
     out_prefix: Annotated[str, typer.Argument(help="Prefix for all outputs files.")],
     p_cutoff: Annotated[Optional[float], typer.Option( "-pc", "-p_cutoff", help="P-value below which a non-background variant predicted molecular effect is considered significantly different to the background vars.")] = 0.05,
     fc_cutoff: Annotated[Optional[float], typer.Option( "-fc", "-fc_cutoff", help=( "Fold-change cutoff to be considered significant.") )] = 0,
