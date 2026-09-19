@@ -27,7 +27,7 @@ import dnacipher_train.visual.dna_cipher_plotting as dnapl
 
 app = typer.Typer(pretty_exceptions_short=False)
 
-__version__ = '1.0.2'
+__version__ = '1.5.0'
 __version_name__ = '🦾MetalGrip'
 
 @app.command()
