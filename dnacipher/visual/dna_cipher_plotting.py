@@ -48,7 +48,7 @@ def plot_signals(signals_normed, variant_loc=None,
 
         if plot_delta: # Assumes inputs represent difference tracks
             delta = round(float( sum(signals_normed[:, i]*100) ), 2) # To make it a percentage
-            ax.text(-30, y_offset, f'∆={delta}%',
+            ax.text(-30, y_offset, f'∆={delta}',
                     color=exper_color, fontsize=label_size * 0.8, fontweight=fontweight)
 
         if plot_origins:
