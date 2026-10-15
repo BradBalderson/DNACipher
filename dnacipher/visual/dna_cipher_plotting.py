@@ -126,6 +126,7 @@ def plot_signals(signals_normed, variant_loc=None,
     xticks = list(range(0, signals_normed.shape[0], xtick_freq))
     xtick_labels = [bin_labels[i] for i in xticks]
     ax.set_xticks(xticks, xtick_labels)
+    ax.tick_params(axis='x', rotation=90)
 
     # Add the x-axis label
     ax.set_xlabel( xlabel, fontdict={'fontsize': label_size*1.2}, #labelpad=10
