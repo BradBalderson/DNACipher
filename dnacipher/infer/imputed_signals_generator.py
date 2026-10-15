@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-from dnacipher_train.embed.embedding_generator import EmbeddingGenerator
+from dnacipher.embed.embedding_generator import EmbeddingGenerator
 
 class ImputedSignals(Dataset):
     """ Represents a dataset of signal imputations from the DNACipher model.
