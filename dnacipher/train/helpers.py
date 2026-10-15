@@ -13,9 +13,9 @@ from torch.utils.data import DataLoader
 
 from pathlib import Path
 
-from dnacipher_train.train.train_classes import Precomputed
-from dnacipher_train.train.loss_weighting import optimize_weightings
-from dnacipher_train.model.dna_cipher_model import DNACipherModel
+from dnacipher.train.train_classes import Precomputed
+from dnacipher.train.loss_weighting import optimize_weightings
+from dnacipher.model.dna_cipher_model import DNACipherModel
 
 def model_and_dataset_setup(genome_file, sample_file, signal_file, embed_file, batch_size, cpu, device,
                             model_config_file, log_file, learning_rate=0, dropout_rate=0, n_regions=None,
