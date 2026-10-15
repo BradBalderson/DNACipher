@@ -3,7 +3,7 @@
 
 import pandas as pd
 
-import dnacipher_train.command_line_helpers as clh
+import dnacipher.command_line_helpers as clh
 
 def infer_signals(out_prefix, bed_path, celltypes, assays, fasta_file_path,
                    sample_file, model_config_file, weights_path, model_name, device, batch_size,
