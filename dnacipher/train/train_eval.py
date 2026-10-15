@@ -20,8 +20,8 @@ from statsmodels.stats.multitest import multipletests
 
 from scipy.stats import pearsonr, spearmanr, ttest_rel, wilcoxon
 
-import dnacipher_train.train.helpers as helpers
-import dnacipher_train.helpers.utils as utils
+import dnacipher.train.helpers as helpers
+import dnacipher.helpers.utils as utils
 
 def eval(run_name, genome_file, sample_file, signal_file, embed_file,
                weights_path, out_dir, model_config_file, ct_knn_json_file,
