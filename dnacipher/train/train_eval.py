@@ -3,8 +3,6 @@
 
 import time
 
-import dnacipher_train.visual.helpers as vhs
-
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -22,6 +20,7 @@ from scipy.stats import pearsonr, spearmanr, ttest_rel, wilcoxon
 
 import dnacipher.train.helpers as helpers
 import dnacipher.helpers.utils as utils
+import dnacipher.visual.helpers as vhs
 
 def eval(run_name, genome_file, sample_file, signal_file, embed_file,
                weights_path, out_dir, model_config_file, ct_knn_json_file,
