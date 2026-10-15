@@ -6,10 +6,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-import dnacipher_train.embed.md as md
+import dnacipher.embed.md as md
 
-import dnacipher_train.model.dna_cipher_model as dnac
-import dnacipher_train.infer.dna_cipher_infer as dnaci
+import dnacipher.model.dna_cipher_model as dnac
+import dnacipher.infer.dna_cipher_infer as dnaci
 
 import inspect
 import yaml
