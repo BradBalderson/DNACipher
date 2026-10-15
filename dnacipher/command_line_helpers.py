@@ -56,7 +56,7 @@ def load_context_data(sample_file_path=None, verbose=True):
     if type(sample_file_path)==type(None): # Load the default.
         git_path = Path(__file__).parent  # Should be the DNACipher path
         model_path = f'{git_path}/weights/'
-        sample_file_path = f'{model_path}encode_meta_encode_imputable_filter-fixed_train-test_samp-probs.tsv'
+        sample_file_path = f'{model_path}encode_meta_encode_imputable_filter-fixed_train-test_samp-probs.borzoi_fold_0.tsv'
 
         if verbose:
             print(f"Loaded default sample_file: {sample_file_path}\n", file=sys.stdout, flush=True)
@@ -96,7 +96,7 @@ def parse_model_config(model_config_file, log_file):
 
 def load_dnacipher_infer(fasta_file_path, log_file=None,
                          weights_path=None, sample_file_path=None, config_path=None,
-                         model_name=None, embed_config_yaml=None,
+                         model_name='enformer', embed_config_yaml=None,
                          device=None, verbose=True):
     """ Loads the DNACipher inference model. """
 
@@ -105,14 +105,26 @@ def load_dnacipher_infer(fasta_file_path, log_file=None,
 
     git_path = Path(__file__).parent  # Should be the DNACipher path
 
-    if type(weights_path)==type(None):
-        weights_path = f'{git_path}/weights/FULL_TRAIN5_model_weights.pth'
+    # Setting up the embedding model that was used to train this version of DNACipher:
+    if type(model_name) == type(None):
+        model_name = 'enformer'
+
+    #### Creating the EmbeddingModel.
+    if model_name not in md.model_names:
+        raise Exception(f"Inputted {model_name} not currently supported, must be one of {md.model_names}")
+
+    # Selecting the correct weights.
+    if model_name=='enformer' and type(weights_path)==type(None):
+        weights_path = f'{git_path}/weights/ENFORMER_SOFTPLUS_LR_0_model_weights.pth'
+
+    elif model_name=='borzoi' and type(weights_path)==type(None):
+        weights_path = f'{git_path}/weights/BORZOI_SOFTPLUS_LR_0_model_weights.pth'
 
     if type(sample_file_path)==type(None):
-        sample_file_path = f'{git_path}/weights/encode_meta_encode_imputable_filter-fixed_train-test_samp-probs.tsv'
+        sample_file_path = f'{git_path}/weights/encode_meta_encode_imputable_filter-fixed_train-test_samp-probs.borzoi_fold_0.tsv'
 
     if type(config_path)==type(None):
-        config_path = f'{git_path}/configs/default_model_config.yaml'
+        config_path = f'{git_path}/configs/softplusLR_model_config.yaml'
 
     if verbose:
         print(f"Loading sample_file: {sample_file_path}\n", file=log_file, flush=True)
@@ -121,14 +133,6 @@ def load_dnacipher_infer(fasta_file_path, log_file=None,
 
     # Some extra parameters about the model which cannot be read from the weights:
     model_config, extra_params = parse_model_config(config_path, log_file)
-
-    # Setting up the embedding model that was used to train this version of DNACipher:
-    if type(model_name) == type(None):
-        model_name = 'enformer'
-
-    #### Creating the EmbeddingModel.
-    if model_name not in md.model_names:
-        raise Exception(f"Inputted {model_name} not currently supported, must be one of {md.model_names}")
 
     #### Reading any extra inputs to the model setup...
     if type(embed_config_yaml) == type(None):
