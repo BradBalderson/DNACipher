@@ -22,8 +22,8 @@ from .train import train_eval as te
 
 from .infer import run_effect_inference as infer
 from .infer import run_signal_inference as si
-import dnacipher_train.infer.deep_variant_impact_mapping as dvim
-import dnacipher_train.visual.dna_cipher_plotting as dnapl
+import dnacipher.infer.deep_variant_impact_mapping as dvim
+import dnacipher.visual.dna_cipher_plotting as dnapl
 
 app = typer.Typer(pretty_exceptions_short=False)
 
