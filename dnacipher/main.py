@@ -33,7 +33,7 @@ __version_name__ = '🦾MetalGrip'
 @app.command()
 def version():
     """Prints the DNACipher version."""
-    print(f"DNACipher train {__version__}: {__version_name__}", file=sys.stdout, flush=True)
+    print(f"DNACipher {__version__}: {__version_name__}", file=sys.stdout, flush=True)
 
 @app.command()
 def device(training: Annotated[
@@ -264,6 +264,47 @@ def infer_signals(
         device, batch_size,
         all_combinations, verbose,
     )
+
+
+@app.command()
+def infer_effects(
+        out_prefix: Annotated[str, typer.Argument(help="Prefix for all outputs files.")],
+        chr_: Annotated[str, typer.Argument(help="Chromosome of variant.")],
+        pos: Annotated[int, typer.Argument(help="Position of variant on chromosome.")],
+        ref: Annotated[str, typer.Argument(help="Reference allele of variant.")],
+        alt: Annotated[str, typer.Argument(help="Alternate allele of variant.")],
+        celltypes: Annotated[str, typer.Argument(help="Celltypes to infer effects for. File in format: ct1,,ct2,,ct3")],
+        assays: Annotated[str, typer.Argument(help="Assays to infer effects for. File in format: assay1,,assay2,,assay3")],
+        fasta_file_path: Annotated[str, typer.Argument(help="FASTA file path for the reference genome. Must have .fai index.")],
+        device: Annotated[Optional[str], typer.Option("-d", "-device", help="Device to run model on.")] = None,
+        index_base: Annotated[Optional[int], typer.Option("-i", "-index_base", help=(
+        "Whether the variant position is 0-based or 1-based indexing."))] = 0,
+        correct_ref: Annotated[bool, typer.Option("-correct_ref/-no-correct_ref",
+                                                  help="Correct the reference genome sequence if disagrees with the inputted ref allele.")] = False,
+        seq_pos: Annotated[ Optional[int], typer.Option("-s", "-seq_pos", help=("Where to centre the query sequence."))] = None,
+        effect_region_start: Annotated[Optional[int], typer.Option("-ers", "-effect_region_start", help=("Where to start measuring the effect in the genome."))] = None,
+        effect_region_end: Annotated[Optional[int], typer.Option("-ere", "-effect_region_end", help=("Where to end measuring the effect in the genome."))] = None,
+        batch_size: Annotated[Optional[int], typer.Option("-b", "-batch_size", help=("How many effects to infer at a time."))] = None,
+        batch_by: Annotated[Optional[str], typer.Option("-by", "-batch_by", help=("Indicates how to batch the data when fed into the model, either by 'experiment', 'sequence', or None. If None, will automatically choose whichever is the larger axis."))] = None,
+        all_combinations: Annotated[bool, typer.Option("-all_combinations/-no-all_combinations",
+                                                       help="Generate predicetions for all combinations of inputted cell types and assays.")] = True,
+        return_all: Annotated[bool, typer.Option("-return_all/-no-return_all",
+                                                 help="Return the signals across the ref and alt sequences")] = False,
+        scoring_method: Annotated[str, typer.Option("-sm", "-scoring_method",
+                                                    help="Refers to how to compare the ref and alt prediction to score variant effects. Supported methods are 'sign_sum_abs' which will take the SUM(|ALT-REF|)*{-1 if SUM(ALT-REF) < 0}. 'sum_logfc' which will score as log2( (SUM(ALT) / SUM(REF)) + 1).")] = "sign_sum_abs",
+        verbose: Annotated[bool, typer.Option("-verbose/-quiet", help="Enable or disable verbose output")] = True
+    ):
+    """ Infers a single varaints effects across celltypes and assays, and optionally across the sequence.
+    """
+
+    infer.infer_effects(out_prefix, vcf_path, celltypes, assays, fasta_file_path,
+                                     sample_file, model_config_file, weights_path, model_name,
+                                     device, index_base,
+                                     correct_ref, seq_pos_col, effect_region_start_col, effect_region_end_col,
+                                     batch_size,
+                                     batch_by, all_combinations, scoring_method, verbose,
+                                     )
+
 
 @app.command()
 def infer_multivariant_effects(

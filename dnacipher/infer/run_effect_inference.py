@@ -6,6 +6,65 @@ import pandas as pd
 
 import dnacipher.command_line_helpers as clh
 
+# TODO finish working on this, need to get it working for the tutorial.
+def infer_effects(out_prefix, chr_, pos, ref, alt, celltypes, assays, fasta_file_path,
+                  sample_file, model_config_file, weights_path, model_name,
+                  device, index_base, correct_ref,
+                  seq_pos, effect_region_start, effect_region_end, batch_size, batch_by, all_combinations, return_all,
+                  scoring_method, verbose
+    ):
+
+    dnacipher, celltypes, assays = clh.parse_general_input(celltypes, assays, device, fasta_file_path, verbose)
+
+    if type(effect_region_start) != type(None) and type(effect_region_end) != type(None):
+        effect_region = (effect_region_start, effect_region_end)
+    else:
+        effect_region = None
+
+    if return_all:  # Detailed predictions along the strand !
+        context_effects, ref_signals, alt_signals, ref_seq, alt_seq, ref_features, alt_features = \
+            dnacipher.infer_effects(chr_, pos, ref, alt, celltypes, assays,
+                                    index_base=index_base, correct_ref=correct_ref, seq_pos=seq_pos,
+                                    effect_region=effect_region, batch_size=batch_size, batch_by=batch_by,
+                                    all_combinations=all_combinations, scoring_method=scoring_method, verbose=verbose,
+                                    return_all=True,
+                                    )
+
+        ref_signals_normed_and_ordered, alt_signals_normed_and_ordered = dnacipher.normalise_and_ordered_signals(
+            ref_signals, alt_signals
+        )
+        diff_signals = dnacipher.get_diff_signals(ref_signals_normed_and_ordered, alt_signals_normed_and_ordered)
+
+        frames = [context_effects, ref_signals, alt_signals, ref_signals_normed_and_ordered,
+                  alt_signals_normed_and_ordered,
+                  diff_signals]
+
+        for i, (dataframe, name_) in enumerate(zip(frames, ['context_effects', 'ref_signals', 'alt_signals',
+                                                            'ref_signals_normed_and_ordered',
+                                                            'alt_signals_normed_and_ordered',
+                                                            'diff_signals'])):
+
+            out_path = f"{out_prefix}{name_}.txt"
+            dataframe.to_csv(out_path, index=i != 0, sep='\t')  # all of the signal frames need the index
+
+            if verbose:
+                print(f"Wrote {out_path}", file=sys.stdout, flush=True)
+
+    else:  # Just the overall locus effects.
+        context_effects = dnacipher.infer_effects(chr_, pos, ref, alt, celltypes, assays,
+                                                  index_base=index_base, correct_ref=correct_ref, seq_pos=seq_pos,
+                                                  effect_region=effect_region, batch_size=batch_size, batch_by=batch_by,
+                                                  all_combinations=all_combinations, scoring_method=scoring_method,
+                                                  verbose=verbose,
+                                                  return_all=False,
+                                                  )
+
+        out_path = f"{out_prefix}context_effects.txt"
+        context_effects.to_csv(out_path, index=False, sep='\t')
+
+        if verbose:
+            print(f"Wrote {out_path}", file=sys.stdout, flush=True)
+
 def infer_multivariant_effects(out_prefix, vcf_path, celltypes, assays, fasta_file_path,
                                sample_file, model_config_file, weights_path, model_name,
                                device, index_base,
