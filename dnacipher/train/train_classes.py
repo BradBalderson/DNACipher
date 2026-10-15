@@ -1,6 +1,6 @@
 
-from dnacipher_train.signals.signal_dataset_classes import load_signal_data
-from dnacipher_train.helpers.dataset_classes import RegionFeaturesSubset
+from dnacipher.signals.signal_dataset_classes import load_signal_data
+from dnacipher.helpers.dataset_classes import RegionFeaturesSubset
 
 from torch.utils.data import Dataset
 
