@@ -7,13 +7,13 @@
 
 DNACipher, a deep learning framework that integrates long-range sequence modeling with biological context imputation, 
 enabling variant effect prediction across 38,000+ experimental contexts, 
-a 7-fold improvement over previous state-of-the-art models such as Enformer.
+a 6-fold improvement over previous state-of-the-art models such as AlphaGenome.
 
 Deep Variant Impact Mapping (DVIM) is an analysis framework built on DNACipher that calls significant variant effects
 at GWAS loci, to call common and rare 'impact' variants. These impact variants have the following properties:
 
     * They occur within the GWAS hit locus.
-    * Have significant predicted molecular effects in >=1 biological contexts above non-significant common variants at a similar genome location.
+    * Have significant predicted molecular effects in >=1 biological contexts above non-trait associated common variants at a similar genome location.
     * They can be common or rare variants - enabling the study of rare variants previously inaccessible to classical statistical methods.
 
 DNACipher is made available here as both a Python interface and a command-line-interface, with tutorials below reproducing

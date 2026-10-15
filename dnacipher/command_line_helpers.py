@@ -94,7 +94,7 @@ def parse_model_config(model_config_file, log_file):
 
     return model_config, extra_params
 
-def load_dnacipher_infer(fasta_file_path, log_file,
+def load_dnacipher_infer(fasta_file_path, log_file=None,
                          weights_path=None, sample_file_path=None, config_path=None,
                          model_name=None, embed_config_yaml=None,
                          device=None, verbose=True):
