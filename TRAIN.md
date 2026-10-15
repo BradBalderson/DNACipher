@@ -15,13 +15,13 @@ if including additional data in training.
 
         conda activate dnat
 
-        mamba install matplotlib seaborn pandas scipy pytorch-lightning zlib ipykernel bioconda::bedtools bioconda:pybigwig
+        mamba install matplotlib seaborn pandas scipy pytorch-lightning zlib ipykernel bioconda::bedtools 
 
         export LDFLAGS="-L$CONDA_PREFIX/lib"
         export CPPFLAGS="-I$CONDA_PREFIX/include"
         export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
 
-        pip install numba typer pyfaidx kipoiseq enformer-pytorch pybedtools pyBigWig borzoi-pytorch
+        pip install numba typer pyfaidx kipoiseq enformer-pytorch borzoi-pytorch pybedtools pyBigWig 
 
         git clone https://github.com/BradBalderson/DNACipher
         cd DNACipher

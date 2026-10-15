@@ -10,7 +10,7 @@ import pyBigWig
 
 import resource # Important to be able to open many files.
 
-from dnacipher_train.helpers.dataset_classes import RegionFeaturesSubset
+from dnacipher.helpers.dataset_classes import RegionFeaturesSubset
 
 def load_signal_data(genome_file, sample_file, signal_file,
               train_regions_only=False, test_regions_only=False,

@@ -72,14 +72,14 @@ Basic commands to install.
 ```bash
 mamba create -n dnac_env python=3.10
 mamba activate dnac_env
-mamba install matplotlib seaborn pandas scipy pytorch-lightning zlib ipykernel bioconda::bedtools 
+mamba install matplotlib seaborn pandas scipy pytorch-lightning zlib ipykernel bioconda::bedtools bioconda:pybigwig
 
 # ensure zlib is found
 export LDFLAGS="-L$CONDA_PREFIX/lib"
 export CPPFLAGS="-I$CONDA_PREFIX/include"
 export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
 
-pip install numba typer pyfaidx kipoiseq enformer-pytorch pybedtools
+pip install numba typer pyfaidx kipoiseq enformer-pytorch borzoi-pytorch pybedtools
 
 git clone https://github.com/BradBalderson/DNACipher.git
 cd DNACipher
