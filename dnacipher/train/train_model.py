@@ -11,11 +11,11 @@ import torch
 
 import pytorch_lightning as pl
 
-from dnacipher_train.train.callbacks import get_callbacks
-import dnacipher_train.train.train_eval as train_eval
+from dnacipher.train.callbacks import get_callbacks
+import dnacipher.train.train_eval as train_eval
 
-import dnacipher_train.train.helpers as helpers
-import dnacipher_train.helpers.utils as utils
+import dnacipher.train.helpers as helpers
+import dnacipher.helpers.utils as utils
 
 def train_dnacipher_model(run_name, genome_file, sample_file, signal_file, embed_file, out_dir,
                           model_config_file,
