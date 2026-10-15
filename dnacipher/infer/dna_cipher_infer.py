@@ -23,9 +23,9 @@ import pybedtools
 
 import sys
 
-from dnacipher_train.model.dna_cipher_model import DNACipherModel
+from dnacipher.model.dna_cipher_model import DNACipherModel
 
-from dnacipher_train.infer.imputed_signals_generator import ImputedSignals
+from dnacipher.infer.imputed_signals_generator import ImputedSignals
 
 from torch.utils.data import DataLoader, SequentialSampler, BatchSampler
 from ..helpers import data_manage
