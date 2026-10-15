@@ -1,3 +1,6 @@
+tutorials/data/GRCh38-cCREs.bed
+tutorials/data/gencode.v26.annotation.gtf
+tutorials/data/genome.fa.fai
 dnacipher/model/__pycache__/
 dnacipher/model/__pycache__/dna_cipher_model.cpython-310.pyc
 dnacipher/model/__pycache__/dna_cipher_model.cpython-310.pyc
@@ -5,7 +8,8 @@ dnacipher/model/__pycache__/dna_cipher_model.cpython-310.pyc
 dnacipher/.ipynb_checkpoints/
 dnacipher/infer/.ipynb_checkpoints/
 dnacipher/infer/__pycache__/
-tutorials/
+#tutorials/
+#!tutorials/DeepVariantImpactMapping.ipynb
 dnacipher/weights/TRAINING_DNACV5_MID-AVG-GENOME_ORIG-ALLOC_ENFORMER0_FINETUNE_STRATMSE_model_weights.pth
 dnacipher/visual/__pycache__/
 dnacipher/train/__pycache__/
