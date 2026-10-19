@@ -265,7 +265,6 @@ def infer_signals(
         all_combinations, verbose,
     )
 
-
 @app.command()
 def infer_effects(
         out_prefix: Annotated[str, typer.Argument(help="Prefix for all outputs files.")],
@@ -277,10 +276,12 @@ def infer_effects(
         assays: Annotated[str, typer.Argument(help="Assays to infer effects for. File in format: assay1,,assay2,,assay3")],
         fasta_file_path: Annotated[str, typer.Argument(help="FASTA file path for the reference genome. Must have .fai index.")],
         device: Annotated[Optional[str], typer.Option("-d", "-device", help="Device to run model on.")] = None,
-        index_base: Annotated[Optional[int], typer.Option("-i", "-index_base", help=(
-        "Whether the variant position is 0-based or 1-based indexing."))] = 0,
-        correct_ref: Annotated[bool, typer.Option("-correct_ref/-no-correct_ref",
-                                                  help="Correct the reference genome sequence if disagrees with the inputted ref allele.")] = False,
+        sample_file: Annotated[Optional[str], typer.Option("-sf", "-sample_file", help="Sample metadata used to train the DNACipher model to be used for inference. If not provided uses default DNACipher.")] = None,
+        model_config_file: Annotated[Optional[str], typer.Option("-m", "-model_config", help=(".yaml file specifying the model parameters, such as layer sizes, number of layers, etc. If not provided, defaults to an internal config specifying the original model."))] = None,
+        weights_path: Annotated[Optional[str], typer.Option("-w", "-weights", help=(".pth specifying the pretrained DNACipher model weights. if None will use default pretrained DNACipher model."))] = None,
+        model_name: Annotated[Optional[str], typer.Option("-mn", "-model_name", help='Name of the model to use for precomputing the embeddings for training. If None defaults to pretrained DNACipher model.')] = None,
+        index_base: Annotated[Optional[int], typer.Option("-i", "-index_base", help=("Whether the variant position is 0-based or 1-based indexing."))] = 0,
+        correct_ref: Annotated[bool, typer.Option("-correct_ref/-no-correct_ref", help="Correct the reference genome sequence if disagrees with the inputted ref allele.")] = False,
         seq_pos: Annotated[ Optional[int], typer.Option("-s", "-seq_pos", help=("Where to centre the query sequence."))] = None,
         effect_region_start: Annotated[Optional[int], typer.Option("-ers", "-effect_region_start", help=("Where to start measuring the effect in the genome."))] = None,
         effect_region_end: Annotated[Optional[int], typer.Option("-ere", "-effect_region_end", help=("Where to end measuring the effect in the genome."))] = None,
@@ -297,14 +298,13 @@ def infer_effects(
     """ Infers a single varaints effects across celltypes and assays, and optionally across the sequence.
     """
 
-    infer.infer_effects(out_prefix, vcf_path, celltypes, assays, fasta_file_path,
+    infer.infer_effects(out_prefix, chr_, pos, ref, alt, celltypes, assays, fasta_file_path,
                                      sample_file, model_config_file, weights_path, model_name,
                                      device, index_base,
-                                     correct_ref, seq_pos_col, effect_region_start_col, effect_region_end_col,
+                                     correct_ref, seq_pos, effect_region_start, effect_region_end,
                                      batch_size,
-                                     batch_by, all_combinations, scoring_method, verbose,
+                                     batch_by, all_combinations, return_all, scoring_method, verbose,
                                      )
-
 
 @app.command()
 def infer_multivariant_effects(

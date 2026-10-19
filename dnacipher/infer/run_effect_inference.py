@@ -14,7 +14,11 @@ def infer_effects(out_prefix, chr_, pos, ref, alt, celltypes, assays, fasta_file
                   scoring_method, verbose
     ):
 
-    dnacipher, celltypes, assays = clh.parse_general_input(celltypes, assays, device, fasta_file_path, verbose)
+    dnacipher, celltypes, assays = clh.parse_general_input(celltypes, assays, device, fasta_file_path, verbose,
+                                                           weights_path=weights_path,
+                                                           sample_file_path=sample_file,
+                                                           config_path=model_config_file, model_name=model_name,
+                                                           )
 
     if type(effect_region_start) != type(None) and type(effect_region_end) != type(None):
         effect_region = (effect_region_start, effect_region_end)
