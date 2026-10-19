@@ -164,6 +164,9 @@ class DNACipher():
         elif abs(seq_pos - pos) >= ( seqlen * 0.95 ):
             raise Warning(f"Inputted sequence centre location is >0.90 the maximum long-range effect prediction from "
                           f"the variant, may be less accurate.")
+        #### Only supporting SNPS right now.
+        elif len(ref)!=1 or len(alt)!=1:
+            raise Exception(f"Currently do not support INDEL inference, remove variant: {chr_}:{pos}:{ref}:{alt}.")
 
         side_seq = seqlen // 2
         midpoint = seq_pos - index_base
