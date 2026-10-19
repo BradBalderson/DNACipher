@@ -477,7 +477,7 @@ dnacipher stratify-variants ${out_prefix} ${runx3_gwas_stats_path} other_allele 
 
 As output, this gives the same input file, but with an extra column 'variant_label' specifying the stratification of the variant:
 
-    variant_id      p_value chromosome      base_pair_location      effect_allele   other_allele    effect_allele_frequency beta    standard_error  odds_ratio      ci_lower        ci_upper        -log10_pval     var_label
+    variant_id      p_value chromosome      base_pair_location      effect_allele   other_allele    effect_allele_frequency beta    standard_error  odds_ratio      ci_lower        ci_upper        log10_pval     var_label
     rs72657048      1.11e-07        1       24963243        G       C       0.509   0.074632        0.01406                         6.954677021213342       candidate
     rs6672420       1.74e-07        1       24964519        T       A       0.483   0.07369 0.014103                                6.7594507517174005      candidate
 
@@ -507,7 +507,7 @@ Easy to check this result with the following command:
     │ *    var_loc_col                     <str>  Column in the input dataframe that specifies the variant position as an integer. [required]                                                                                         │
     ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
     ╭─ Options ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │         -l,-locus                                 <int>    Which locus to plot, as an integer specifying the locus ordering, if multiple loci represented by a seq_pos column. If None will plot first locus are all variants,  │
+    │         -li,-locus                                 <int>    Which locus to plot, as an integer specifying the locus ordering, if multiple loci represented by a seq_pos column. If None will plot first locus are all variants,  │
     │                                                            for latter case assuming file represents single locus.                                                                                                               │
     │         -chr,-chrom_col                           <str>    Name of column that contains the chromosome.                                                                                                                         │
     │         -gtf,-gtf_file_path                       <str>    Optional GTF file path for plotting gene annotations.                                                                                                                │
@@ -523,7 +523,7 @@ Easy to check this result with the following command:
 We can now plot to see if the variant stratification make sense:
  
 ```bash
-dnacipher plot-variant-stats ${out_prefix} ${out_prefix}stratified_gwas_stats.txt "-log10_pval" var_label base_pair_location -gtf gencode.v26.annotation.gtf   
+dnacipher plot-variant-stats ${out_prefix} ${out_prefix}stratified_gwas_stats.txt log10_pval var_label base_pair_location -gtf gencode.v26.annotation.gtf   
 ```  
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_-log10_pval_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="500">
 
@@ -535,9 +535,9 @@ dnacipher plot-variant-stats ${out_prefix} ${out_prefix}stratified_gwas_stats.tx
 Creating the input files required for the DNACipher variant effect inference for cell types and assays.
 
 ```bash
-echo 'effector memory CD4-positive, alpha-beta T cell,,activated naive CD8-positive, alpha-beta T cell,,T-helper 17 cell,,T-cell,,CD8-positive, alpha-beta memory T cell,,effector memory CD8-positive, alpha-beta T cell,,pancreas,,peripheral blood mononuclear cell,,naive thymus-derived CD8-positive, alpha-beta T cell,,CD4-positive, alpha-beta memory T cell,,central memory CD8-positive, alpha-beta T cell,,naive thymus-derived CD4-positive, alpha-beta T cell,,body of pancreas,,CD4-positive, CD25-positive, alpha-beta regulatory T cell,,CD4-positive, alpha-beta T cell,,CD8-positive, alpha-beta T cell,,CD14-positive monocyte,,natural killer cell' > t1d_runx3_celltypes.txt
+echo "natural killer cell,,B cell,,T-cell,,pancreas" > t1d_runx3_celltypes.txt
 
-echo 'ATAC-seq,,DNase-seq,,plus strand polyA minus RNA-seq,,plus strand polyA plus RNA-seq,,plus strand total RNA-seq,,signal of polyA plus RNA-seq' > t1d_runx3_assays.txt
+echo 'minus strand polyA plus RNA-seq,,plus strand polyA plus RNA-seq,,plus strand total RNA-seq,,minus strand total RNA-seq,,ATAC-seq,,H3K27ac_ChIP-seq,,H2BK20ac_ChIP-seq,,H3K27me3_ChIP-seq,,CTCF_ChIP-seq' > t1d_runx3_assays.txt
 ```
 
 Need to re-arrange the frame to make sure is in format CHR, POS, REF, ALT, required by ***dnacipher infer-multivariant-effects***
@@ -549,7 +549,12 @@ awk 'BEGIN {OFS="\t"} {print $3, $4, $6, $5, $NF}' ${out_prefix}selected_gwas_st
 awk 'BEGIN {OFS=FS="\t"} NR==1 || $1 ~ /^chr/ {print $0; next} { $1 = "chr" $1; print }' ${out_prefix}selected_gwas_stats.reformatted.txt > ${out_prefix}selected_gwas_stats.reformatted.chr_named.txt
 ```
 
-👉***IMPORTANT*** need to set the seq_pos column, so that each variant is being scored consistently for DVIM and comparing variant effects in a apples-to-apples fashion.
+👉***IMPORTANT*** need to set the seq_pos column, so that each variant is being scored consistently for DVIM and comparing variant effects in a apples-to-apples fashion at each locus.
+
+If there are variants from multiple GWAS loci in this input file, they need to be labelled with a different variant-centre position, which is
+what DNACipher will use to determine which variants below to which loci for analysis. I recommend setting this to be the centre of the GWAS signal.
+
+In the future, I will implement another function which automatically formats such a query file appropriately from different GWAS summary statistics outputs.
 
 ```bash
 runx3_stats=${out_prefix}selected_gwas_stats.reformatted.chr_named.txt
@@ -558,11 +563,18 @@ runx3_stats_dvim=${out_prefix}selected_gwas_stats.reformatted.chr_named.seq_pos.
 awk 'BEGIN {OFS=FS="\t"} NR==1 {print $0, "seq_pos"; next} {print $0, "24970252"}' ${runx3_stats} > ${runx3_stats_dvim}
 ```
 
-Now running the dnacipher effect inference for these variants, which will then compare statistically.
-~5mins and 4.2Gb of GPU RAM on A40 GPU to infer effects across 543 variants and 108 contexts.
+This is the resulting file format:
+
+    chromosome      base_pair_location      other_allele    effect_allele   var_label       seq_pos
+    chr1    24963243        C       G       candidate       24970252
+    chr1    24964519        A       T       candidate       24970252
+    chr1    24966177        C       T       candidate       24970252
+    chr1    24966593        T       C       candidate       24970252
+
+Now running the dnacipher effect inference for these variants:
 
 ```bash
-dnacipher infer-multivariant-effects ${runx3_stats_dvim} t1d_runx3_celltypes.txt t1d_runx3_assays.txt ${fasta_path} ${out_prefix} -i 1 -seq_pos_col seq_pos
+dnacipher infer-multivariant-effects ${out_prefix} ${runx3_stats_dvim} t1d_runx3_celltypes.txt t1d_runx3_assays.txt ${fasta_path} -i 1 -seq_pos_col seq_pos
 ```
     
 </details>
@@ -571,38 +583,29 @@ dnacipher infer-multivariant-effects ${runx3_stats_dvim} t1d_runx3_celltypes.txt
 <summary><strong>2.3.4 Calculating variant-effect p-values</strong></summary>
 
 ```bash
-dnacipher effect-pvals --help
+dnacipher impact-map --help
 ``` 
-     Usage: dnacipher effect-pvals [OPTIONS] SELECTED_GWAS_STATS_PATH                                                                                        
-                                   PRED_EFFECTS_PATH OUT_PREFIX                                                                                              
-                                                                                                                                                             
-     Calculates variant effect p-values for non-background variants against background variants.                                                             
-                                                                                                                                                             
-    ╭─ Arguments ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ *    selected_gwas_stats_path      TEXT  Path to GWAS summary statistics for each of the variants at a GWAS locus, with a column 'var_labels'         │
-    │                                          indicating candidate, rare, and background variants. Each row is a variant.                                  │
-    │                                          [default: None]                                                                                              │
-    │                                          [required]                                                                                                   │
-    │ *    pred_effects_path             TEXT  Path to predicted effects for each variant. Each row is a variant, and each column is a predicted molecular  │
-    │                                          effect for that variant.                                                                                     │
-    │                                          [default: None]                                                                                              │
-    │                                          [required]                                                                                                   │
-    │ *    out_prefix                    TEXT  Prefix for all outputs files. [default: None] [required]                                                     │
-    ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    ╭─ Options ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │         -nb,-n_boots         INTEGER  No. of boot-straps of re-selecting the background variants. [default: 10000]                                    │
-    │         -pc,-p_cutoff        FLOAT    P-value below which a non-background variant predicted molecular effect is considered significantly different   │
-    │                                       to the background vars.                                                                                         │
-    │                                       [default: 0.05]                                                                                                 │
-    │         -p,-pseudocount      INTEGER  Value added to boot-strap counts to prevent 0 p-values, defines lower-bound for minimum p-values, should be set │
-    │                                       to 1.                                                                                                           │
-    │                                       [default: 1]                                                                                                    │
-    │         -std,-min_std        FLOAT    Minimum standard deviation for the background variant effects. Set to avoid 0 std for 0 effects of background   │
-    │                                       variants causing infinite z-scores.                                                                             │
-    │                                       [default: 0.01]                                                                                                 │
-    │         -v,-verbosity        INTEGER  Verbosity levels. 0 errors only, 1 prints processing progress, 2 prints debugging information. [default: 1]     │
-    │ --help                                Show this message and exit.                                                                                     │
-    ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+     Usage: dnacipher impact-map [OPTIONS] {out_prefix} {selected_gwas_stats_path}                                                                                                                                                     
+                                 {pred_effects_path}                                                                                                                                                                                   
+                                                                                                                                                                                                                                       
+     Calls 'impact' variants - variants with significant predicted effects in particular cell types / assays compared with background variants.                                                                                        
+                                                                                                                                                                                                                                       
+    ╭─ Arguments ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │ *    out_prefix                    <str>  Prefix for all outputs files. [required]                                                                                                                                              │
+    │ *    selected_gwas_stats_path      <str>  Path to GWAS summary statistics for each of the variants at a GWAS locus, with a column 'var_labels' indicating candidate, rare, and background variants. Each row is a variant.      │
+    │                                           [required]                                                                                                                                                                            │
+    │ *    pred_effects_path             <str>  Path to predicted effects for each variant. Each row is a variant, and each column is a predicted molecular effect for that variant. [required]                                       │
+    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ Options ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │         -c,-cpu              <int>    No. of CPUs to use. Parallelizes across the number of loci, so no effect if only one locus. [default: 3]                                                                                  │
+    │         -nb,-n_boots         <int>    No. of boot-straps of re-selecting the background variants. [default: 10000]                                                                                                              │
+    │         -pc,-p_cutoff        <float>  P-value below which a non-background variant predicted molecular effect is considered significantly different to the background vars. [default: 0.05]                                     │
+    │         -fc,-fc_cutoff       <float>  Fold-change cutoff to be considered significant. [default: 0]                                                                                                                             │
+    │         -std,-min_std        <float>  Minimum standard deviation for the background variant effects. Set to avoid 0 std for 0 effects of background variants causing infinite z-scores. [default: 0.01]                         │
+    │         -p,-pseudocount      <int>    Value added to boot-strap counts to prevent 0 p-values, defines lower-bound for minimum p-values, should be set to 1. [default: 1]                                                        │
+    │         -v,-verbosity        <int>    Verbosity levels. 0 errors only, 1 prints processing progress, 2 prints debugging information. [default: 1]                                                                               │
+    │ --help                                Show this message and exit.                                                                                                                                                               │
+    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 This command will perform boot-strapping of the background variant effects, and perform a one-sample z-test for each 
 predicted effect of the candidate common and rare variants to determine p-values with the measured
@@ -610,9 +613,9 @@ mean and std of the background variant effects as the null distribution.
 Very fast due to Numba just-in-time (JIT) C-compilation (~0.1min for 10,000 boot-straps).
 
 ```bash
-runx3_effects=${out_prefix}var_context_effects.txt
+runx3_effects=${out_prefix}_var_context_effects.txt.gz
 
-dnacipher effect-pvals ${runx3_stats} ${runx3_effects} ${out_prefix}
+dnacipher impact-map ${out_prefix} ${runx3_stats_dvim} ${runx3_effects} 
 ``` 
 
 The output files include {out_prefix}_boot_pvals.txt and {out_prefix}_boot_counts.txt. Former is the p-values of 

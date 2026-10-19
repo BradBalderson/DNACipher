@@ -417,8 +417,8 @@ def impact_map(
                                                                         pseudocount=pseudocount, fc_cutoff=fc_cutoff
                                                                         )
 
-    out_paths = [selected_gwas_stats_path.replace('.txt', '.impact_calls.txt'), f"{out_prefix}sig_effects.txt",
-                 f"{out_prefix}fold_changes.txt"]+[f"{out_prefix}boot_pvals.txt", f"{out_prefix}boot_counts.txt"]
+    out_paths = [selected_gwas_stats_path.replace('.txt', '.impact_calls.txt'), f"{out_prefix}_sig_effects.txt",
+                 f"{out_prefix}fold_changes.txt"]+[f"{out_prefix}_boot_pvals.txt", f"{out_prefix}_boot_counts.txt"]
     out_dfs = [selected_gwas_stats, sig_effects, foldchange_effects, boot_pvals_df, boot_counts_df]
     for out_path, dataframe in zip(out_paths, out_dfs):
 
@@ -428,8 +428,9 @@ def impact_map(
             print(f"Wrote {out_path}", file=sys.stdout, flush=True)
 
     if verbose:
-        loci_common_sig = len(np.where(selected_gwas_stats['locus_common_padj'].values < p_cutoff)[0])
-        loci_rare_sig = len(np.where(selected_gwas_stats['locus_rare_padj'].values < p_cutoff)[0])
+        loci_stats = selected_gwas_stats.loc[:,['seq_pos', 'locus_common_padj', 'locus_rare_padj']].drop_duplicates()
+        loci_common_sig = len(np.where(loci_stats['locus_common_padj'].values < p_cutoff)[0])
+        loci_rare_sig = len(np.where(loci_stats['locus_rare_padj'].values < p_cutoff)[0])
 
         print(f"\nFound {loci_common_sig} loci with significant effects for common variants.", file=sys.stdout, flush=True)
         print(f"\nFound {loci_rare_sig} loci with significant effects for rare variants.", file=sys.stdout,flush=True)
