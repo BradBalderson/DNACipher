@@ -3,6 +3,7 @@ import math
 
 import numpy as np
 import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 def plot_signals(signals_normed, variant_loc=None,
@@ -420,7 +421,14 @@ def get_colors(labels, color_map='tab20', rgb=False):
 
     # Ordering the cells according to their frequency and obtaining colors #
     nLabels = len(labelSet)
-    cmap = plt.cm.get_cmap(color_map, nLabels)
+
+    try:
+        # Modern approach (Matplotlib >= 3.5)
+        cmap = mpl.colormaps[color_map].resampled(nLabels)
+    except (AttributeError, KeyError):
+        # Legacy approach (Matplotlib < 3.5)
+        cmap = plt.cm.get_cmap(color_map, nLabels)
+
     rgbs = [cmap(i)[:3] for i in range(nLabels)]
 
     # Populating the color dictionary with rgb values or hexcodes #

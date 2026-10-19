@@ -70,7 +70,7 @@ The current version has been tested with python 3.10 using the conda environment
 Basic commands to install.
 
 ```bash
-mamba create -n dnac_env python=3.10
+mamba create -n dnac_env python=3.13.15
 mamba activate dnac_env
 mamba install matplotlib seaborn pandas scipy pytorch-lightning zlib ipykernel bioconda::bedtools bioconda:pybigwig
 
@@ -79,7 +79,7 @@ export LDFLAGS="-L$CONDA_PREFIX/lib"
 export CPPFLAGS="-I$CONDA_PREFIX/include"
 export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
 
-pip install numba typer pyfaidx kipoiseq enformer-pytorch borzoi-pytorch pybedtools
+pip install numba typer pyfaidx kipoiseq enformer-pytorch borzoi-pytorch==0.5.1 pybedtools
 
 git clone https://github.com/BradBalderson/DNACipher.git
 cd DNACipher
@@ -122,38 +122,42 @@ Usage 💻
 ```bash
 dnacipher --help
  ```                                                                                                                                        
-    ╭─ Options ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ --install-completion          Install completion for the current shell.                                                                                                                                                                                    │
-    │ --show-completion             Show completion for the current shell, to copy it or customize the installation.                                                                                                                                             │
-    │ --help                        Show this message and exit.                                                                                                                                                                                                  │
-    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    ╭─ Commands ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ version                     Prints the DNACipher version.                                                                                                                                                                                                  │
-    │ device                      Prints the device that is detected and will be used by DNACipher.                                                                                                                                                              │
-    │ precompute-embeds           Precomputes the sequence embeddings at desired genome sequence locations, as mean embeddings around the input coordinates.                                                                                                     │
-    │ precompute-signals          Precomputes the functional signals to be predicted with given input sequence, as mean signal across the input locations.                                                                                                       │
-    │ split-h5                    Converts a .h5 file containing a single matrix, to a split.h5 which has an index, allows for faster random indexing.                                                                                                           │
-    │ fit-norm                    Fits a normalization to the data - so that the mean signal values across assays are scaled to the median observed value.                                                                                                       │
-    │                             Because the data is very sparse, this mean signal is relative to the non-zero entries in the dataset, and also the                                                                                                             │
-    │                             normalization is only applied to the non-zero entries.                                                                                                                                                                         │
-    │                             RNA-seq is dealt with in a specific way, because of the different representation of this assay.                                                                                                                                │
-    │ apply-norm                  Applies a pre-fitted normalization to the inputted data.                                                                                                                                                                       │
-    │ norm                        Performs both the fitting and applying of the normalization.                                                                                                                                                                   │
-    │ train                       Trains the DNACipher model.                                                                                                                                                                                                    │
-    │ eval                        Runs evaluation on a trained the DNACipher model.                                                                                                                                                                              │
-    │ celltypes                   Prints the available celltypes to infer effects for.                                                                                                                                                                           │
-    │ assays                      Prints the available assays to infer effects for.                                                                                                                                                                              │
-    │ infer-signals               Infer signals across genomic regions for given celltype/assays.                                                                                                                                                                │
-    │ infer-multivariant-effects  Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per                                                                                                                         │
-    │                             variant, and predicted effect sizes across the columns for celltype/assay combinations.                                                                                                                                        │
-    │ stratify-variants           Performs stratification of variants at GWAS loci to categories:                                                                                                                                                                │
-    │                             * 'candidate' variants (common significant variants),                                                                                                                                                                          │
-    │                             * 'rare' variants (non-significant rare variants in the same region as the candidate variants),                                                                                                                                │
-    │                             * 'background' variants (common non-significant variants), and 'other' variants (rare variants outside of the hit locus).                                                                                                      │
-    │ impact-map                  Calls 'impact' variants - variants with significant predicted effects in particular cell types / assays compared with background variants.                                                                                     │
-    │ plot-variant-stats          Manhattan-like plot for variant statistics.                                                                                                                                                                                    │
-    │ plot-volcano                Volcano plot for Deep Variant Impact Mapping predicted molecular effects.                                                                                                                                                      │
-    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+     Usage: dnacipher [OPTIONS] COMMAND [ARGS]...                                                                                                                                                                                      
+                                                                                                                                                                                                                                       
+    ╭─ Options ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │ --install-completion          Install completion for the current shell.                                                                                                                                                         │
+    │ --show-completion             Show completion for the current shell, to copy it or customize the installation.                                                                                                                  │
+    │ --help                        Show this message and exit.                                                                                                                                                                       │
+    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ Commands ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │ version                     Prints the DNACipher version.                                                                                                                                                                       │
+    │ device                      Prints the device that is detected and will be used by DNACipher.                                                                                                                                   │
+    │ precompute-embeds           Precomputes the sequence embeddings at desired genome sequence locations, as mean embeddings around the input coordinates.                                                                          │
+    │ precompute-signals          Precomputes the functional signals to be predicted with given input sequence, as mean signal across the input locations.                                                                            │
+    │ split-h5                    Converts a .h5 file containing a single matrix, to a split.h5 which has an index, allows for faster random indexing.                                                                                │
+    │ fit-norm                    Fits a normalization to the data - so that the mean signal values across assays are scaled to the median observed value.                                                                            │
+    │                             Because the data is very sparse, this mean signal is relative to the non-zero entries in the dataset, and also the                                                                                  │
+    │                             normalization is only applied to the non-zero entries.                                                                                                                                              │
+    │                             RNA-seq is dealt with in a specific way, because of the different representation of this assay.                                                                                                     │
+    │ apply-norm                  Applies a pre-fitted normalization to the inputted data.                                                                                                                                            │
+    │ norm                        Performs both the fitting and applying of the normalization.                                                                                                                                        │
+    │ train                       Trains the DNACipher model.                                                                                                                                                                         │
+    │ eval                        Runs evaluation on a trained the DNACipher model.                                                                                                                                                   │
+    │ celltypes                   Prints the available celltypes to infer effects for.                                                                                                                                                │
+    │ assays                      Prints the available assays to infer effects for.                                                                                                                                                   │
+    │ infer-signals               Infer signals across genomic regions for given celltype/assays.                                                                                                                                     │
+    │ infer-effects               Infers a single varaints effects across celltypes and assays, and optionally across the sequence.                                                                                                   │
+    │ infer-multivariant-effects  Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per                                                                                              │
+    │                             variant, and predicted effect sizes across the columns for celltype/assay combinations.                                                                                                             │
+    │ stratify-variants           Performs stratification of variants at GWAS loci to categories:                                                                                                                                     │
+    │                             * 'candidate' variants (common significant variants),                                                                                                                                               │
+    │                             * 'rare' variants (non-significant rare variants in the same region as the candidate variants),                                                                                                     │
+    │                             * 'background' variants (common non-significant variants), and 'other' variants (rare variants outside of the hit locus).                                                                           │
+    │ impact-map                  Calls 'impact' variants - variants with significant predicted effects in particular cell types / assays compared with background variants.                                                          │
+    │ plot-signals                Plots DNACipher signal tracks and optional gene/cCRE annotations.                                                                                                                                   │
+    │ plot-variant-stats          Manhattan-like plot for variant statistics.                                                                                                                                                         │
+    │ plot-volcano                Volcano plot for Deep Variant Impact Mapping predicted molecular effects.                                                                                                                           │
+    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 2.2 DNACipher variant effect inference 
 ------
@@ -181,42 +185,44 @@ effects for, the path to the fasta file and the prefix for the output files.
 ```bash
 dnacipher infer-effects --help
  ```
-     Usage: dnacipher infer-effects [OPTIONS] {out_prefix} {chr_} {pos} {ref} {alt}                                                                                                                                                                               
-                                    {celltypes} {assays} {fasta_file_path}                                                                                                                                                                                        
-                                                                                                                                                                                                                                                                  
-     Infers a single varaints effects across celltypes and assays, and optionally across the sequence.                                                                                                                                                            
-                                                                                                                                                                                                                                                                  
-    ╭─ Arguments ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ *    out_prefix           <str>  Prefix for all outputs files. [required]                                                                                                                                                                                  │
-    │ *    chr_                 <str>  Chromosome of variant. [required]                                                                                                                                                                                         │
-    │ *    pos                  <int>  Position of variant on chromosome. [required]                                                                                                                                                                             │
-    │ *    ref                  <str>  Reference allele of variant. [required]                                                                                                                                                                                   │
-    │ *    alt                  <str>  Alternate allele of variant. [required]                                                                                                                                                                                   │
-    │ *    celltypes            <str>  Celltypes to infer effects for. File in format: ct1,,ct2,,ct3 [required]                                                                                                                                                  │
-    │ *    assays               <str>  Assays to infer effects for. File in format: assay1,,assay2,,assay3 [required]                                                                                                                                            │
-    │ *    fasta_file_path      <str>  FASTA file path for the reference genome. Must have .fai index. [required]                                                                                                                                                │
-    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    ╭─ Options ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │         -d,-device                                         <str>  Device to run model on.                                                                                                                                                                  │
-    │         -sf,-sample_file                                   <str>  Sample metadata used to train the DNACipher model to be used for inference. If not provided uses default DNACipher.                                                                      │
-    │         -m,-model_config                                   <str>  .yaml file specifying the model parameters, such as layer sizes, number of layers, etc. If not provided, defaults to an internal config specifying the original model.                   │
-    │         -w,-weights                                        <str>  .pth specifying the pretrained DNACipher model weights. if None will use default pretrained DNACipher model.                                                                             │
-    │         -mn,-model_name                                    <str>  Name of the model to use for precomputing the embeddings for training. If None defaults to pretrained DNACipher model.                                                                   │
-    │         -i,-index_base                                     <int>  Whether the variant position is 0-based or 1-based indexing. [default: 0]                                                                                                                │
-    │         -correct_ref                 -no-correct_ref              Correct the reference genome sequence if disagrees with the inputted ref allele. [default: no-correct_ref]                                                                               │
-    │         -s,-seq_pos                                        <int>  Where to centre the query sequence.                                                                                                                                                      │
-    │         -ers,-effect_region_start                          <int>  Where to start measuring the effect in the genome.                                                                                                                                       │
-    │         -ere,-effect_region_end                            <int>  Where to end measuring the effect in the genome.                                                                                                                                         │
-    │         -b,-batch_size                                     <int>  How many effects to infer at a time.                                                                                                                                                     │
-    │         -by,-batch_by                                      <str>  Indicates how to batch the data when fed into the model, either by 'experiment', 'sequence', or None. If None, will automatically choose whichever is the larger axis.                   │
-    │         -all_combinations            -no-all_combinations         Generate predicetions for all combinations of inputted cell types and assays. [default: all_combinations]                                                                                │
-    │         -return_all                  -no-return_all               Return the signals across the ref and alt sequences [default: no-return_all]                                                                                                             │
-    │         -sm,-scoring_method                                <str>  Refers to how to compare the ref and alt prediction to score variant effects. Supported methods are 'sign_sum_abs' which will take the SUM(|ALT-REF|)*{-1 if SUM(ALT-REF) < 0}.          │
-    │                                                                   'sum_logfc' which will score as log2( (SUM(ALT) / SUM(REF)) + 1).                                                                                                                        │
-    │                                                                   [default: signed_sum_abs]                                                                                                                                                                │
-    │         -verbose                     -quiet                       Enable or disable verbose output [default: verbose]                                                                                                                                      │
-    │ --help                                                            Show this message and exit.                                                                                                                                                              │
-    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+     Usage: dnacipher infer-effects [OPTIONS] {out_prefix} {chr_} {pos} {ref} {alt}                                                                                                                                                    
+                                    {celltypes} {assays} {fasta_file_path}                                                                                                                                                             
+                                                                                                                                                                                                                                       
+     Infers a single varaints effects across celltypes and assays, and optionally across the sequence.                                                                                                                                 
+                                                                                                                                                                                                                                       
+    ╭─ Arguments ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │ *    out_prefix           <str>  Prefix for all outputs files. [required]                                                                                                                                                       │
+    │ *    chr_                 <str>  Chromosome of variant. [required]                                                                                                                                                              │
+    │ *    pos                  <int>  Position of variant on chromosome. [required]                                                                                                                                                  │
+    │ *    ref                  <str>  Reference allele of variant. [required]                                                                                                                                                        │
+    │ *    alt                  <str>  Alternate allele of variant. [required]                                                                                                                                                        │
+    │ *    celltypes            <str>  Celltypes to infer effects for. File in format: ct1,,ct2,,ct3 [required]                                                                                                                       │
+    │ *    assays               <str>  Assays to infer effects for. File in format: assay1,,assay2,,assay3 [required]                                                                                                                 │
+    │ *    fasta_file_path      <str>  FASTA file path for the reference genome. Must have .fai index. [required]                                                                                                                     │
+    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ Options ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │         -d,-device                                         <str>  Device to run model on.                                                                                                                                       │
+    │         -sf,-sample_file                                   <str>  Sample metadata used to train the DNACipher model to be used for inference. If not provided uses default DNACipher.                                           │
+    │         -m,-model_config                                   <str>  .yaml file specifying the model parameters, such as layer sizes, number of layers, etc. If not provided, defaults to an internal config specifying the        │
+    │                                                                   original model.                                                                                                                                               │
+    │         -w,-weights                                        <str>  .pth specifying the pretrained DNACipher model weights. if None will use default pretrained DNACipher model.                                                  │
+    │         -mn,-model_name                                    <str>  Name of the model to use for the sequence. If None defaults to the enformer model.                                                                            │
+    │         -i,-index_base                                     <int>  Whether the variant position is 0-based or 1-based indexing. [default: 0]                                                                                     │
+    │         -correct_ref                 -no-correct_ref              Correct the reference genome sequence if disagrees with the inputted ref allele. [default: no-correct_ref]                                                    │
+    │         -s,-seq_pos                                        <int>  Where to centre the query sequence.                                                                                                                           │
+    │         -ers,-effect_region_start                          <int>  Where to start measuring the effect in the genome.                                                                                                            │
+    │         -ere,-effect_region_end                            <int>  Where to end measuring the effect in the genome.                                                                                                              │
+    │         -b,-batch_size                                     <int>  How many effects to infer at a time.                                                                                                                          │
+    │         -by,-batch_by                                      <str>  Indicates how to batch the data when fed into the model, either by 'experiment', 'sequence', or None. If None, will automatically choose whichever is the     │
+    │                                                                   larger axis.                                                                                                                                                  │
+    │         -all_combinations            -no-all_combinations         Generate predicetions for all combinations of inputted cell types and assays. [default: all_combinations]                                                     │
+    │         -return_all                  -no-return_all               Return the signals across the ref and alt sequences [default: no-return_all]                                                                                  │
+    │         -sm,-scoring_method                                <str>  Refers to how to compare the ref and alt prediction to score variant effects. Supported methods are 'sign_sum_abs' which will take the SUM(|ALT-REF|)*{-1 if  │
+    │                                                                   SUM(ALT-REF) < 0}. 'sum_logfc' which will score as log2( (SUM(ALT) / SUM(REF)) + 1).                                                                          │
+    │                                                                   [default: signed_sum_abs]                                                                                                                                     │
+    │         -verbose                     -quiet                       Enable or disable verbose output [default: verbose]                                                                                                           │
+    │ --help                                                            Show this message and exit.                                                                                                                                   │
+    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 ***Running example, showing the variant effect inference for a causal eQTL at the WRN gene locus:***
 
@@ -247,7 +253,7 @@ dnacipher infer-effects ${out_prefix} ${chr_} ${pos} ${ref} ${alt} celltypes.txt
 
 ```bash
 # Inferring effects for a single variant with signals along sequence outputted, by the -return_all flag.
-dnacipher infer-effects ${out_prefix} ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end} -return_all
+dnacipher infer-effects ${out_prefix} ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} -mn borzoi -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end} -return_all
 ```
 
 </details>
@@ -286,15 +292,15 @@ which could be the ref signals, the alt signals, or the diff signals which refer
 These outputted signal files have this format:
 
         prostate gland---plus strand polyA plus RNA-seq prostate gland---minus strand polyA plus RNA-seq
-    chr8_31019494_31019622  -1.1451542e-05  1.0021031e-05
-    chr8_31019622_31019750  -3.5203993e-05  -1.9833446e-05
-    chr8_31019750_31019878  -8.381903e-06   6.67572e-06
-    chr8_31019878_31020006  -1.9155443e-05  3.27453e-05
+    chr8_30978534_30978566  -1.9446015e-06  -0.00014594942
+    chr8_30978566_30978598  -2.4095178e-05  -0.00021222234
+    chr8_30978598_30978630  6.7520887e-06   -8.9131296e-05
 
 These are tab-separated files, with columns in format ***CELLTYPE---ASSAY***, and rows are in format ***CHR_START_END*** referring to positions in the genome
 where the inferred difference occurs. When using the Enformer model as the based model, the resolution is 128bp resolution bins, 
 for 896 bins (total ~114kb, in the middle of the inputted 196kb sequence). The values in this case are ALT-REF signals as each position.
-You can also use Borzoi as the base model for higher resolution and longer input sequence and longer output signal prediction, or some custom model (see Train.md).
+The above uses Borzoi as the base model for higher resolution and longer input sequence and longer output signal prediction. 
+Can also use a some custom model, but need to specify additional inputs (see Train.md).
 
 The below code produces signal plots for the diff-signals shown above, which is also produced in Tutorial 1 of the Python API.
 
