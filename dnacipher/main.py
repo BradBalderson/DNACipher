@@ -328,6 +328,7 @@ def infer_multivariant_effects(
         all_combinations: Annotated[bool, typer.Option("-all_combinations/-no-all_combinations",help="Generate predictions for all combinations of inputted cell types and assays.")] = True,
         scoring_method: Annotated[str, typer.Option("-sm", "-scoring_method",help="Refers to how to compare the ref and alt prediction to score variant effects. Supported methods are 'signed_sum_abs' which will take the SUM(|ALT-REF|)*{-1 if SUM(ALT-REF) < 0}. 'sum_logfc' which will score as log2( (SUM(ALT) / SUM(REF)) + 1).")] = "signed_sum_abs",
         res_reduce_factor: Annotated[Optional[int], typer.Option("-rrf", "-res_reduce_factor", help=("Decrease the resolution of the imputed signals by this factor. E.g. rrf=4, 32bp/bin goes to 128bp/bin. If None maintains same resolution as embedding model."))] = None,
+        check: Annotated[bool, typer.Option("-check/-unchecked", help="Whether to check if the input variants are valid or not, by loading all of the sequences first. Helps prevent errors during a long inference run.")] = True,
         verbose: Annotated[bool, typer.Option("-verbose/-quiet", help="Enable or disable verbose output")] = True
 ):
     """ Takes as input a vcf file, in format, CHR, POS, REF, ALT as columns. Outputs a dataframe with rows per
@@ -342,6 +343,7 @@ def infer_multivariant_effects(
                                      correct_ref, seq_pos_col, effect_region_start_col, effect_region_end_col,
                                      batch_size,
                                      batch_by, all_combinations, scoring_method, verbose, res_reduce_factor=res_reduce_factor,
+                                     check=check, verbose=verbose
                                )
 
 @app.command()

@@ -75,7 +75,7 @@ def infer_multivariant_effects(out_prefix, vcf_path, celltypes, assays, fasta_fi
                                device, index_base,
                                correct_ref, seq_pos_col, effect_region_start_col, effect_region_end_col, batch_size,
                                batch_by, all_combinations, scoring_method, verbose, n_vars=None,
-                               res_reduce_factor=None,
+                               res_reduce_factor=None, check=True,
                                ):
 
     #### Output log file
@@ -102,6 +102,15 @@ def infer_multivariant_effects(out_prefix, vcf_path, celltypes, assays, fasta_fi
         var_df = var_df.head(n_vars)
 
     var_df.iloc[:,0] = var_df.iloc[:,0].astype(str)
+
+    if check:
+        n_vars_init = var_df.shape[0]
+        var_df = dnacipher.check_seqs(var_df, index_base=index_base, seq_pos_col=seq_pos_col, correct_ref=correct_ref)
+        if var_df.shape[0] != n_vars_init:
+            var_df.to_csv(f"{vcf_path}.fixed", sep='\t')
+            print(f"Found variant queries with errors, writing variants without errors to file and "
+                  f"continuing analysis with these variants:", file=log_file, flush=True)
+            print(f"Wrote {vcf_path}.fixed", file=log_file, flush=True)
 
     var_pred_effects = dnacipher.infer_multivariant_effects(var_df, celltypes, assays,
                                                             index_base=index_base, correct_ref=correct_ref,

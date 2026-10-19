@@ -236,19 +236,30 @@ class DNACipher():
         return ref_seq, alt_seq, seq_range
 
     def check_seqs(self, vcf_df, index_base=0, #variant position are based on 0- or 1- base indexing.
+                   seq_pos_col=None, correct_ref=False,
                    verbose=True, log_file=sys.stdout):
         """ Checks if the reference sequence is correct for all listed variants.
         """
         if verbose:
             print(f"CHECKING {vcf_df.shape[0]} variants.", file=log_file, flush=True)
 
+        if seq_pos_col is not None:
+            seq_pos_col_index = list(vcf_df.columns.values).index(seq_pos_col)
+        else:
+            seq_pos = None
+
         good_indices = []
         incorrect_cnt = 0
         for i in range(vcf_df.shape[0]):
 
             chr_, pos, ref, alt = vcf_df.values[i, 0:4]
+            if seq_pos_col is not None:
+                seq_pos = vcf_df.values[i, seq_pos_col_index]
+
             try:
-                ref_seq, alt_seq, _ = self.get_seqs(chr_, pos, ref, alt, index_base=index_base)
+                ref_seq, alt_seq, _ = self.get_seqs(chr_, pos, ref, alt, index_base=index_base,
+                                                    seq_pos=seq_pos, correct_ref=correct_ref
+                                                    )
                 good_indices.append( i )
 
             except Exception as exception:
