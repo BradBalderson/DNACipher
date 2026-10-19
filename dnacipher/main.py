@@ -562,7 +562,7 @@ def plot_variant_stats(
         var_chrom_col=chrom_col, var_loc_col=var_loc_col,
     )
 
-    out_path = f"{out_prefix}_{locus}{y_axis_col}_{color_by}_variant_stats.png"
+    out_path = f"{out_prefix}_{locus}_{y_axis_col}_{color_by}_variant_stats.png"
     clh.dealWithPlot(True, False, True, '', out_path, 300)
 
     if verbose:
@@ -602,7 +602,7 @@ def plot_volcano(
         show=False
     )
 
-    out_path = f"{out_prefix}{variant_type}_volcano.png"
+    out_path = f"{out_prefix}_{variant_type}_volcano.png"
     clh.dealWithPlot(True, False, True, '', out_path, 300)
 
     if verbose:
