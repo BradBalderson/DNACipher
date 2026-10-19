@@ -292,7 +292,7 @@ def infer_effects(
         return_all: Annotated[bool, typer.Option("-return_all/-no-return_all",
                                                  help="Return the signals across the ref and alt sequences")] = False,
         scoring_method: Annotated[str, typer.Option("-sm", "-scoring_method",
-                                                    help="Refers to how to compare the ref and alt prediction to score variant effects. Supported methods are 'sign_sum_abs' which will take the SUM(|ALT-REF|)*{-1 if SUM(ALT-REF) < 0}. 'sum_logfc' which will score as log2( (SUM(ALT) / SUM(REF)) + 1).")] = "sign_sum_abs",
+                                                    help="Refers to how to compare the ref and alt prediction to score variant effects. Supported methods are 'sign_sum_abs' which will take the SUM(|ALT-REF|)*{-1 if SUM(ALT-REF) < 0}. 'sum_logfc' which will score as log2( (SUM(ALT) / SUM(REF)) + 1).")] = "signed_sum_abs",
         verbose: Annotated[bool, typer.Option("-verbose/-quiet", help="Enable or disable verbose output")] = True
     ):
     """ Infers a single varaints effects across celltypes and assays, and optionally across the sequence.
