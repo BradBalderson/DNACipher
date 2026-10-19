@@ -279,7 +279,7 @@ def infer_effects(
         sample_file: Annotated[Optional[str], typer.Option("-sf", "-sample_file", help="Sample metadata used to train the DNACipher model to be used for inference. If not provided uses default DNACipher.")] = None,
         model_config_file: Annotated[Optional[str], typer.Option("-m", "-model_config", help=(".yaml file specifying the model parameters, such as layer sizes, number of layers, etc. If not provided, defaults to an internal config specifying the original model."))] = None,
         weights_path: Annotated[Optional[str], typer.Option("-w", "-weights", help=(".pth specifying the pretrained DNACipher model weights. if None will use default pretrained DNACipher model."))] = None,
-        model_name: Annotated[Optional[str], typer.Option("-mn", "-model_name", help='Name of the model to use for precomputing the embeddings for training. If None defaults to pretrained DNACipher model.')] = None,
+        model_name: Annotated[Optional[str], typer.Option("-mn", "-model_name", help='Name of the model to use for the sequence. If None defaults to the enformer model.')] = None,
         index_base: Annotated[Optional[int], typer.Option("-i", "-index_base", help=("Whether the variant position is 0-based or 1-based indexing."))] = 0,
         correct_ref: Annotated[bool, typer.Option("-correct_ref/-no-correct_ref", help="Correct the reference genome sequence if disagrees with the inputted ref allele.")] = False,
         seq_pos: Annotated[ Optional[int], typer.Option("-s", "-seq_pos", help=("Where to centre the query sequence."))] = None,
