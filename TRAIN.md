@@ -452,7 +452,7 @@ Below is the exact commands used to train DNACipher-Borzoi and DNACipher-Enforme
     EVAL_BATCHES="50"
     LEARNING_RATE="0.0014526"
     N_REGIONS="999999999999"
-    CONFIG="DNACipher_Training/dnacipher_train/configs/softplusLR_model_config.yaml"
+    CONFIG="DNACipher/dnacipher/configs/softplusLR_model_config.yaml"
 
     FOLD="0"
 
@@ -461,7 +461,7 @@ Below is the exact commands used to train DNACipher-Borzoi and DNACipher-Enforme
     SAMPLE_FILE="encode_meta_encode_imputable_filter-fixed_train-test_samp-probs.borzoi_fold_${F}.tsv"
     SIGNAL_FILE="REPROD_BWTOOL_epivalues.BORZOI_NORM_${F}.normalised.100N.split.h5"
 
-	dnacipher_train train $TRAIN_NAME $GENOME_FILE $SAMPLE_FILE $SIGNAL_FILE $EMBED_FILE -o $OUT_DIR -b $BATCH_SIZE \
+	dnacipher train $TRAIN_NAME $GENOME_FILE $SAMPLE_FILE $SIGNAL_FILE $EMBED_FILE -o $OUT_DIR -b $BATCH_SIZE \
 	-c $CPU -ew $EPOCHS_WARMUP -ef $EPOCHS_FINAL -eb $EVAL_BATCHES -lr $LEARNING_RATE -nr ${N_REGIONS} \
     -m ${CONFIG}
 
@@ -479,7 +479,7 @@ And additionally for DNACipher-Enformer:
     EVAL_BATCHES="50"
     LEARNING_RATE="0.0014526"
     N_REGIONS="999999999999"
-    CONFIG="DNACipher_Training/dnacipher_train/configs/softplusLR_model_config.yaml"
+    CONFIG="DNACipher/dnacipher/configs/softplusLR_model_config.yaml"
 
     FOLD="0"
 
@@ -488,7 +488,7 @@ And additionally for DNACipher-Enformer:
     SAMPLE_FILE="encode_meta_encode_imputable_filter-fixed_train-test_samp-probs.borzoi_fold_${F}.tsv"
     SIGNAL_FILE="REPROD_BWTOOL_epivalues.BORZOI_NORM_${F}.normalised.100N.split.h5"
 
-	dnacipher_train train $TRAIN_NAME $GENOME_FILE $SAMPLE_FILE $SIGNAL_FILE $EMBED_FILE -o $OUT_DIR -b $BATCH_SIZE \
+	dnacipher train $TRAIN_NAME $GENOME_FILE $SAMPLE_FILE $SIGNAL_FILE $EMBED_FILE -o $OUT_DIR -b $BATCH_SIZE \
 	-c $CPU -ew $EPOCHS_WARMUP -ef $EPOCHS_FINAL -eb $EVAL_BATCHES -lr $LEARNING_RATE -nr ${N_REGIONS} \
     -m ${CONFIG}
 
@@ -497,7 +497,7 @@ different embedding dimensions for the sequences, and adjust the resulting model
 
 For further DNACipher model adjustments, such as the size of the cell type and assay embeddings, you can copy and adjust:
 
-    DNACipher_Training/dnacipher_train/configs/softplusLR_model_config.yaml
+    DNACipher/dnacipher/configs/softplusLR_model_config.yaml
 
 NOTE that in the first preprint version, I used 'default_model_config.yaml', which used the ReLU transformation on model 
 output for 'EPOCHS_FINAL'. But the new version uses SOFTPLUS throughout, but the EPOCHS_FINAL does additionally perform
@@ -533,7 +533,7 @@ Here is the inference example for adjusting the CLI to use the Borzoi weights:
     FASTA_FILE_PATH="hg38.fa"
     
     SAMPLE_FILE="encode_meta_encode_imputable_filter-fixed_train-test_samp-probs.borzoi_fold_0.tsv"
-    MODEL_CONFIG_FILE="DNACipher_Training/dnacipher_train/configs/softplusLR_model_config.yaml"
+    MODEL_CONFIG_FILE="DNACipher/dnacipher/configs/softplusLR_model_config.yaml"
     WEIGHTS_PATH="BORZOI_SOFTPLUS_LR_0_model_weights.pth"
     MODEL_NAME="borzoi"
     DEVICE="cuda:0"
@@ -589,7 +589,7 @@ evaluation:
     CPU="20"
     EVAL_BATCHES="1350"
     N_REGIONS="999999999999"
-    CONFIG="/home/uqbbalde/myPython/DNACipher_Training/dnacipher_train/configs/softplusLR_model_config.yaml"
+    CONFIG="/home/uqbbalde/myPython/DNACipher/dnacipher/configs/softplusLR_model_config.yaml"
 
     DEVICE="cuda:0"
     CT_KNN="DNACipher/dnacipher/configs/celltype_knn.json"
