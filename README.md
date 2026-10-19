@@ -1,7 +1,7 @@
 🧬DNACipher
 ==================
 ## Prediction of genomic measurements from DNA sequence in observed and unobserved cell types and assays
-<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dnacipher_logo.png" alt="DNACipher Example" width="600">
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dnacipher_tracks.png" alt="DNACipher Example" width="600">
 
 **DNACipher is a DNA sequence deep learning model that also includes cell type and assay information on the model input.**
 
@@ -28,11 +28,11 @@ with the commandline interface.
 
 * Tutorial 1: DNACipher inference of genetic variant effects 
 https://colab.research.google.com/gist/BradBalderson/c4389baa0d789314259b8479cfd35747/dnacipher_inference_local.ipynb
-<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dnacipher_tutorial1_figure.png" alt="DNACipher Tut1" width="1000">
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/WRN_eQTL_signals_plot.png" alt="DNACipher Tut1" width="1000">
 
 * Tutorial 2: Deep Variant Impact Mapping (DVIM) with DNACipher to infer common and rare genetic variants with significant effects at GWAS loci:
 https://colab.research.google.com/drive/17GiWLt_SigpVa6hl6A9yP_edM4IcQeEy?usp=sharing
-<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dnacipher_DVIM_example.png" alt="DNACipher Tut2" width="1000">
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/runx3_dvim.png" alt="DNACipher Tut2" width="1000">
 
  2.0 Tutorials -🖥Command-line Interface
 -------
@@ -647,12 +647,13 @@ Can now-replot the variant stats, this time with the n_sig_effects to show the i
 We need to specify the column that has the chromosome information to enable plotting the gene annotations.
 
 By default, the below will plot the results for the first GWAS locus. To plot the results for others, specify the
-'-locus_index'.
+'-locus_index'. NOTE however that the p-values shown are corrected for MHT within the locus, but not between loci,
+to tell if a locus has any common or rare imVars, checked the 
 
 ```bash
 dnacipher plot-variant-stats ${out_prefix} ${out_prefix}selected_gwas_stats.reformatted.chr_named.seq_pos.impact_calls.txt n_sig_effects var_label base_pair_location -gtf gencode.v26.annotation.gtf -chrom_col chromosome
 ```  
-<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx324970252n_sig_effects_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="500">
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_24970252_n_sig_effects_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="500">
 
 Also volcano plots to assess the cutoffs used to call the impact variants:
 
@@ -662,7 +663,7 @@ dnacipher plot-volcano ${out_prefix} candidate ${runx3_stats} ${out_prefix}_sig_
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_candidate_volcano.png" alt="DVIM RUNX3 locus" width="500">
 
 ```bash
-dnacipher plot-volcano ${out_prefix} rare ${runx3_stats} ${out_prefix}sig_effects.txt ${out_prefix}fold_changes.txt ${runx3_pvals} 
+dnacipher plot-volcano ${out_prefix} rare ${runx3_stats} ${out_prefix}_sig_effects.txt ${out_prefix}_fold_changes.txt ${out_prefix}_boot_pvals.txt
 ```  
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_rare_volcano.png" alt="DVIM RUNX3 locus" width="500">
 
