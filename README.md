@@ -518,12 +518,12 @@ Easy to check this result with the following command:
     │ --help                                                     Show this message and exit.                                                                                                                                          │
     ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
-We can now plot to see if the variant stratification make sense:
+We can now plot to see if the variant stratification make sense. Need to specify the chromosome column to plot the gene annotations.
  
 ```bash
-dnacipher plot-variant-stats ${out_prefix} ${out_prefix}stratified_gwas_stats.txt log10_pval var_label base_pair_location -gtf gencode.v26.annotation.gtf   
+dnacipher plot-variant-stats ${out_prefix} ${out_prefix}stratified_gwas_stats.txt log10_pval var_label base_pair_location -gtf gencode.v26.annotation.gtf -chrom_col chromosome
 ```  
-<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_-log10_pval_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="500">
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3__log10_pval_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="500">
 
 </details>
 
