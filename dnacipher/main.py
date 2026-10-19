@@ -343,7 +343,7 @@ def infer_multivariant_effects(
                                      correct_ref, seq_pos_col, effect_region_start_col, effect_region_end_col,
                                      batch_size,
                                      batch_by, all_combinations, scoring_method, verbose, res_reduce_factor=res_reduce_factor,
-                                     check=check, verbose=verbose
+                                     check=check,
                                )
 
 @app.command()
