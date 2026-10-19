@@ -27,11 +27,11 @@ with the commandline interface.
 ### The following tutorials are written in google collab, showing how to use the DNACipher Python interface.
 
 * Tutorial 1: DNACipher inference of genetic variant effects 
-https://colab.research.google.com/gist/BradBalderson/c4389baa0d789314259b8479cfd35747/dnacipher_inference_local.ipynb
+https://colab.research.google.com/github/BradBalderson/DNACipher/blob/main/tutorials/DNACipher_inference_collab.ipynb
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/WRN_eQTL_signals_plot.png" alt="DNACipher Tut1" width="1000">
 
 * Tutorial 2: Deep Variant Impact Mapping (DVIM) with DNACipher to infer common and rare genetic variants with significant effects at GWAS loci:
-https://colab.research.google.com/drive/17GiWLt_SigpVa6hl6A9yP_edM4IcQeEy?usp=sharing
+https://colab.research.google.com/github/BradBalderson/DNACipher/blob/main/tutorials/DeepVariantImpactMapping.ipynb
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/runx3_dvim.png" alt="DNACipher Tut2" width="1000">
 
  2.0 Tutorials -🖥Command-line Interface
