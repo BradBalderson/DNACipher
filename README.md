@@ -344,7 +344,7 @@ Inferring effects for multiple variants like this is achieved with the command b
 
 ```bash
 dnacipher infer-multivariant-effects --help
-``` 
+```
      Usage: dnacipher infer-multivariant-effects [OPTIONS] {out_prefix} {vcf_path}                                                                                                                                                     
                                                  {celltypes} {assays}                                                                                                                                                                  
                                                  {fasta_file_path}                                                                                                                                                                     
@@ -363,7 +363,7 @@ dnacipher infer-multivariant-effects --help
     │         -m,-model_config                                        <str>  .yaml file specifying the model parameters, such as layer sizes, number of layers, etc. If not provided, defaults to an internal config specifying the   │
     │                                                                        original model.                                                                                                                                          │
     │         -w,-weights                                             <str>  .pth specifying the pretrained DNACipher model weights. if None will use default pretrained DNACipher model.                                             │
-    │         -mn,-model_name                                         <str>  Name of the model to use for the sequence. If None defaults to the enformer model.                                │
+    │         -mn,-model_name                                         <str>  Name of the model to use for the sequence. If None defaults to the enformer model.                                                                       │
     │         -d,-device                                              <str>  Device to run model on.                                                                                                                                  │
     │         -i,-index_base                                          <int>  Whether the variant position is 0-based or 1-based indexing. [default: 0]                                                                                │
     │         -correct_ref                      -no-correct_ref              Correct the reference genome sequence if disagrees with the inputted ref allele. [default: no-correct_ref]                                               │
@@ -380,6 +380,8 @@ dnacipher infer-multivariant-effects --help
     │                                                                        [default: signed_sum_abs]                                                                                                                                │
     │         -rrf,-res_reduce_factor                                 <int>  Decrease the resolution of the imputed signals by this factor. E.g. rrf=4, 32bp/bin goes to 128bp/bin. If None maintains same resolution as embedding    │
     │                                                                        model.                                                                                                                                                   │
+    │         -check                            -unchecked                   Whether to check if the input variants are valid or not, by loading all of the sequences first. Helps prevent errors during a long inference run.        │
+    │                                                                        [default: check]                                                                                                                                         │
     │         -verbose                          -quiet                       Enable or disable verbose output [default: verbose]                                                                                                      │
     │ --help                                                                 Show this message and exit.                                                                                                                              │
     ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -387,25 +389,26 @@ dnacipher infer-multivariant-effects --help
 Working example using provided tutorial data, this will take ~0.4 mins and ~4.2Gb of GPU RAM (A40 GPU), or ~41 min for CPU.
 
 ```bash
-out_prefix="eQTLs_"
+out_prefix="eQTLs"
 vcf_path="tutorials/data/gtex_variants_SMALL.vcf"
 
 dnacipher infer-multivariant-effects ${out_prefix} ${vcf_path} celltypes.txt assays.txt ${fasta_path} -mn borzoi -i ${index_base}
 ``` 
 
-The output file looks like this:
+The above does a pre-flight check for any model queries that are invalid, such as INDELs, and filters them out, writing out
+a new file ${vcf_path}.fixed, as exemplified by the above where an INDEL was filtered out.
+
+The output file is for the valid variants outputted as ${vcf_path}.fixed, or ${vcf_path} if all variants were valid,
+and is formatted as below:
 
     prostate gland---plus strand polyA plus RNA-seq prostate gland---minus strand polyA plus RNA-seq
-    0.46152464      -3.3929667
-    -11.987795      30.90546
-    2.1517787       3.6421638
-    6.2597466       7.8572655
-    -11.987795      30.90546
-    6.0217276       -5.532748
-    0.77098024      -1.0102781
+    3.4083834       -0.5303463
+    38.672764       -57.34453
+    2.648003        -3.7050495
+    13.718397       -16.052166
 
-Each row refers to a row in the ***vcf_path*** input, and each column is the ***CELLTYPE---ASSAY***, with SUM(ALT-REF)
-for the given query outputted.
+Each row refers to a row in the ***vcf_path*** input or the ${vcf_path}.fixed, and each column is the ***CELLTYPE---ASSAY***, 
+with SUM(ALT-REF) for the given query outputted.
 
 </details>
 
@@ -431,58 +434,50 @@ to decide what are the different variant types present at the locus for DVIM.
 ```bash
 dnacipher stratify-variants --help
 ```  
-     Usage: dnacipher stratify-variants [OPTIONS] SIGNAL_GWAS_STATS_PATH                                                                                     
-                                        VAR_REF_COL VAR_ALT_COL VAR_LOC_COL P_COL                                                                            
-                                        ALLELE_FREQ_COL OUT_PREFIX                                                                                           
-                                                                                                                                                             
-     Performs stratification of variants at GWAS loci to categories:  * 'candidate' variants (common significant variants),  * 'rare' variants               
-     (non-significant rare variants in the same region as the candidate variants),  * 'background' variants (common non-significant variants), and 'other'   
-     variants (rare variants outside of the hit locus).                                                                                                      
-                                                                                                                                                             
-    ╭─ Arguments ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ *    signal_gwas_stats_path      TEXT  Path to GWAS summary statistics for each of the variants at a GWAS locus, within range model predictions.      │
-    │                                        [default: None]                                                                                                │
-    │                                        [required]                                                                                                     │
-    │ *    var_ref_col                 TEXT  Column in the input dataframe that specifies the variant reference sequence as a string. [default: None]       │
-    │                                        [required]                                                                                                     │
-    │ *    var_alt_col                 TEXT  Column in the input dataframe that specifies the variant alternate sequence as a string. [default: None]       │
-    │                                        [required]                                                                                                     │
-    │ *    var_loc_col                 TEXT  Column in the input dataframe that specifies the variant position as an integer. [default: None] [required]    │
-    │ *    p_col                       TEXT  Name of column in the input dataframe that contains the p-values of the variant-trait associations.            │
-    │                                        [default: None]                                                                                                │
-    │                                        [required]                                                                                                     │
-    │ *    allele_freq_col             TEXT  Column in the input dataframe that specifies the variant allele frequency as a float. [default: None]          │
-    │                                        [required]                                                                                                     │
-    │ *    out_prefix                  TEXT  Prefix for all outputs files. [default: None] [required]                                                       │
-    ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    ╭─ Options ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │         -pc,-p_cut                       FLOAT    P-value cutoff to consider a variant significantly associated with the trait. [default: 5e-07]      │
-    │         -lc,-lowsig_cut                  FLOAT    Cutoff to consider variants confidently not-significant. [default: 0.001]                           │
-    │         -nt,-n_top                       INTEGER  If no significant variants, will take this many as the top candidates. [default: 10]                │
-    │         -afc,-allele_freq_cut            FLOAT    If a variant is above this minor allele frequency AND is considered confidently non-significant,    │
-    │                                                   then is considered a 'background' variant. If is below this allele frequency, then considered a     │
-    │                                                   rare variant.                                                                                       │
-    │                                                   [default: 0.05]                                                                                     │
-    │         -mbv,-min_bg_variants            INTEGER  If have less than this number of background variants, will rank-order potential background variants │
-    │                                                   by scoring allele frequency and significance, and take this many variants as significant.           │
-    │                                                   [default: 100]                                                                                      │
-    │         -verbose                 -quiet           Enable or disable verbose output [default: verbose]                                                 │
-    │ --help                                            Show this message and exit.                                                                         │
-    ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+     Usage: dnacipher stratify-variants [OPTIONS] {out_prefix}                                                                                                                                                                         
+                                        {signal_gwas_stats_path} {var_ref_col}                                                                                                                                                         
+                                        {var_alt_col} {var_loc_col} {p_col}                                                                                                                                                            
+                                        {allele_freq_col}                                                                                                                                                                              
+                                                                                                                                                                                                                                       
+     Performs stratification of variants at GWAS loci to categories: * 'candidate' variants (common significant variants), * 'rare' variants (non-significant rare variants in the same region as the candidate variants), *           
+     'background' variants (common non-significant variants), and 'other' variants (rare variants outside of the hit locus).                                                                                                           
+                                                                                                                                                                                                                                       
+    ╭─ Arguments ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │ *    out_prefix                  <str>  Prefix for all outputs files. [required]                                                                                                                                                │
+    │ *    signal_gwas_stats_path      <str>  Path to GWAS summary statistics for each of the variants at a GWAS locus, within range model predictions. [required]                                                                    │
+    │ *    var_ref_col                 <str>  Column in the input dataframe that specifies the variant reference sequence as a string. [required]                                                                                     │
+    │ *    var_alt_col                 <str>  Column in the input dataframe that specifies the variant alternate sequence as a string. [required]                                                                                     │
+    │ *    var_loc_col                 <str>  Column in the input dataframe that specifies the variant position as an integer. [required]                                                                                             │
+    │ *    p_col                       <str>  Name of column in the input dataframe that contains the p-values of the variant-trait associations. [required]                                                                          │
+    │ *    allele_freq_col             <str>  Column in the input dataframe that specifies the variant allele frequency as a float. [required]                                                                                        │
+    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ Options ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │         -pc,-p_cut                       <float>  P-value cutoff to consider a variant significantly associated with the trait. [default: 5e-07]                                                                                │
+    │         -lc,-lowsig_cut                  <float>  Cutoff to consider variants confidently not-significant. [default: 0.001]                                                                                                     │
+    │         -nt,-n_top                       <int>    If no significant variants, will take this many as the top candidates. [default: 10]                                                                                          │
+    │         -afc,-allele_freq_cut            <float>  If a variant is above this minor allele frequency AND is considered confidently non-significant, then is considered a 'background' variant. If is below this allele           │
+    │                                                   frequency, then considered a rare variant.                                                                                                                                    │
+    │                                                   [default: 0.05]                                                                                                                                                               │
+    │         -mbv,-min_bg_variants            <int>    If have less than this number of background variants, will rank-order potential background variants by scoring allele frequency and significance, and take this many variants │
+    │                                                   as significant.                                                                                                                                                               │
+    │                                                   [default: 100]                                                                                                                                                                │
+    │         -verbose                 -quiet           Enable or disable verbose output [default: verbose]                                                                                                                           │
+    │ --help                                            Show this message and exit.                                                                                                                                                   │
+    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 Now running the example at the RUNX3 T1D locus, note that the columns with the required information are specified on
 input to enable flexible input formats:
 
 ```bash
-out_prefix="dvim_runx3_"
+out_prefix="dvim_runx3"
 runx3_gwas_stats_path="tutorials/data/Chiou-2021-T1D-GWAS_RUNX3-signal_variant_stats.txt.gz"
 
-dnacipher stratify-variants ${runx3_gwas_stats_path} other_allele effect_allele base_pair_location p_value effect_allele_frequency ${out_prefix}
+dnacipher stratify-variants ${out_prefix} ${runx3_gwas_stats_path} other_allele effect_allele base_pair_location p_value effect_allele_frequency 
 ```  
 
 As output, this gives the same input file, but with an extra column 'variant_label' specifying the stratification of the variant:
 
-    variant_id      p_value chromosome      base_pair_location      effect_allele   other_allele    effect_allele_frequency beta    standard_error  odds_ratio       ci_lower        ci_upper        -log10_pval     var_label
+    variant_id      p_value chromosome      base_pair_location      effect_allele   other_allele    effect_allele_frequency beta    standard_error  odds_ratio      ci_lower        ci_upper        -log10_pval     var_label
     rs72657048      1.11e-07        1       24963243        G       C       0.509   0.074632        0.01406                         6.954677021213342       candidate
     rs6672420       1.74e-07        1       24964519        T       A       0.483   0.07369 0.014103                                6.7594507517174005      candidate
 
@@ -498,32 +493,37 @@ Easy to check this result with the following command:
 ```bash
     dnacipher plot-variant-stats --help
 ```                                                                                                                                                       
-     Usage: dnacipher plot-variant-stats [OPTIONS] STRATIFIED_GWAS_STATS_PATH                                                                                
-                                         Y_AXIS_COL COLOR_BY OUT_PREFIX                                                                                      
-                                                                                                                                                             
-     Manhattan-like plot for variant statistics.                                                                                                             
-                                                                                                                                                             
-    ╭─ Arguments ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ *    stratified_gwas_stats_path      TEXT  Path to stratified GWAS statistics file. [default: None] [required]                                        │
-    │ *    y_axis_col                      TEXT  Column name to use for y-axis values (e.g., -log10_pval). [default: None] [required]                       │
-    │ *    color_by                        TEXT  Column name to color points by (e.g., var_label). [default: None] [required]                               │
-    │ *    out_prefix                      TEXT  Prefix for output files. [default: None] [required]                                                        │
-    ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    ╭─ Options ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │         -gtf,-gtf_file_path                       TEXT   Optional GTF file path for plotting gene annotations. [default: None]                        │
-    │         -cmap,-color_map                          TEXT   Colormap name for continuous coloring. [default: magma]                                      │
-    │         -alpha                                    FLOAT  Opacity of the scatter plot points. [default: 0.5]                                           │
-    │         -order_points          -no-order_points          Whether to plot points ordered by statistic. [default: order_points]                         │
-    │         -reverse_order         -no-reverse_order         Whether to reverse point order. [default: no-reverse_order]                                  │
-    │         -show_legend           -no-show_legend           Whether to display the plot legend. [default: show_legend]                                   │
-    │         -verbose               -quiet                    Enable or disable verbose output. [default: verbose]                                         │
-    │ --help                                                   Show this message and exit.                                                                  │
-    ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+     Usage: dnacipher plot-variant-stats [OPTIONS] {out_prefix}                                                                                                                                                                        
+                                         {stratified_gwas_stats_path} {y_axis_col}                                                                                                                                                     
+                                         {color_by} {var_loc_col}                                                                                                                                                                      
+                                                                                                                                                                                                                                       
+     Manhattan-like plot for variant statistics.                                                                                                                                                                                       
+                                                                                                                                                                                                                                       
+    ╭─ Arguments ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │ *    out_prefix                      <str>  Prefix for output files. [required]                                                                                                                                                 │
+    │ *    stratified_gwas_stats_path      <str>  Path to stratified GWAS statistics file. [required]                                                                                                                                 │
+    │ *    y_axis_col                      <str>  Column name to use for y-axis values (e.g., -log10_pval). [required]                                                                                                                │
+    │ *    color_by                        <str>  Column name to color points by (e.g., var_label). [required]                                                                                                                        │
+    │ *    var_loc_col                     <str>  Column in the input dataframe that specifies the variant position as an integer. [required]                                                                                         │
+    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ Options ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │         -l,-locus                                 <int>    Which locus to plot, as an integer specifying the locus ordering, if multiple loci represented by a seq_pos column. If None will plot first locus are all variants,  │
+    │                                                            for latter case assuming file represents single locus.                                                                                                               │
+    │         -chr,-chrom_col                           <str>    Name of column that contains the chromosome.                                                                                                                         │
+    │         -gtf,-gtf_file_path                       <str>    Optional GTF file path for plotting gene annotations.                                                                                                                │
+    │         -cmap,-color_map                          <str>    Colormap name for continuous coloring. [default: magma]                                                                                                              │
+    │         -alpha                                    <float>  Opacity of the scatter plot points. [default: 0.5]                                                                                                                   │
+    │         -order_points          -no-order_points            Whether to plot points ordered by statistic. [default: order_points]                                                                                                 │
+    │         -reverse_order         -no-reverse_order           Whether to reverse point order. [default: no-reverse_order]                                                                                                          │
+    │         -show_legend           -no-show_legend             Whether to display the plot legend. [default: show_legend]                                                                                                           │
+    │         -verbose               -quiet                      Enable or disable verbose output. [default: verbose]                                                                                                                 │
+    │ --help                                                     Show this message and exit.                                                                                                                                          │
+    ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 We can now plot to see if the variant stratification make sense:
  
 ```bash
-dnacipher plot-variant-stats -gtf gencode.v26.annotation.gtf -- ${out_prefix}stratified_gwas_stats.txt "-log10_pval" var_label ${out_prefix}
+dnacipher plot-variant-stats ${out_prefix} ${out_prefix}stratified_gwas_stats.txt "-log10_pval" var_label base_pair_location -gtf gencode.v26.annotation.gtf   
 ```  
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_-log10_pval_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="500">
 

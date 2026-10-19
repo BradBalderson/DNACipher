@@ -501,7 +501,7 @@ def plot_variant_stats(
         y_axis_col: Annotated[str, typer.Argument(help="Column name to use for y-axis values (e.g., -log10_pval).")],
         color_by: Annotated[str, typer.Argument(help="Column name to color points by (e.g., var_label).")],
         var_loc_col: Annotated[str, typer.Argument(help="Column in the input dataframe that specifies the variant position as an integer.")],
-        locus_index: Annotated[Optional[int], typer.Option("-l", "-locus", help="Which locus to plot, as an integer specifying the locus ordering, if multiple loci represented by a seq_pos column. If None will plot first locus are all variants, for latter case assuming file represents single locus.")] = None,
+        locus_index: Annotated[Optional[int], typer.Option("-li", "-locus", help="Which locus to plot, as an integer specifying the locus ordering, if multiple loci represented by a seq_pos column. If None will plot first locus are all variants, for latter case assuming file represents single locus.")] = None,
         chrom_col: Annotated[Optional[str], typer.Option("-chr", "-chrom_col", help="Name of column that contains the chromosome.")] = None,
         gtf_file_path: Annotated[Optional[str], typer.Option("-gtf", "-gtf_file_path", help="Optional GTF file path for plotting gene annotations.")] = None,
         color_map: Annotated[Optional[str], typer.Option("-cmap", "-color_map", help="Colormap name for continuous coloring.")] = "magma",
