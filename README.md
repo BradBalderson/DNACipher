@@ -241,9 +241,9 @@ dnacipher infer-effects ${out_prefix} ${chr_} ${pos} ${ref} ${alt} celltypes.txt
 ```
 
 ```bash
-# Inferring effects for a single variant with signals along sequence outputted
-dnacipher infer-effects ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end} -return_all
- ```
+# Inferring effects for a single variant with signals along sequence outputted, by the -return_all flag.
+dnacipher infer-effects ${out_prefix} ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end} -return_all
+```
 
 </details>
 

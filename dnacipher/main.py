@@ -433,6 +433,66 @@ def impact_map(
         print(f"\nFound {loci_rare_sig} loci with significant effects for rare variants.", file=sys.stdout,flush=True)
 
 @app.command()
+def plot_signals(
+    signals_path: Annotated[str, typer.Argument(help="Path to the signal predictions across contexts for a given variant.")],
+    out_prefix: Annotated[str, typer.Argument(help="Prefix for all outputs files.")],
+    gtf_file_path: Annotated[Optional[str], typer.Option("-gtf", "-gtf_file_path", help="Optional: GTF file path for gene annotation overlap.")] = None,
+    encode_cres_path: Annotated[Optional[str], typer.Option("-cres", "-encode_cres_path", help="Optional: BED file path for cCREs annotation overlap.")] = None,
+    variant_chr: Annotated[Optional[str], typer.Option("-chr", "-variant_chr", help="Chromosome of the variant (for plotting vertical line).")] = None,
+    variant_pos: Annotated[Optional[int], typer.Option("-pos", "-variant_pos", help="Position of the variant (for plotting vertical line).")] = None,
+    variant_ref: Annotated[Optional[str], typer.Option("-ref", "-variant_ref", help="Reference allele of the variant.")] = None,
+    variant_alt: Annotated[Optional[str], typer.Option("-alt", "-variant_alt", help="Alternate allele of the variant.")] = None,
+    plot_delta: Annotated[bool, typer.Option("-plot_delta/-no-plot_delta", help="Whether to plot the difference between ref and alt signals.")] = False,
+    xtick_freq: Annotated[Optional[int], typer.Option("-xtick_freq", help="Spacing between x-ticks in base pairs.")] = 200,
+    title: Annotated[Optional[str], typer.Option("-title", help="Plot title.")] = "DNACipher track predictions",
+    verbose: Annotated[bool, typer.Option("-verbose/-quiet", help="Enable or disable verbose output.")] = True
+):
+    """Plots DNACipher signal tracks and optional gene/cCRE annotations."""
+
+    # Load predicted effects
+    signals_normed = pd.read_csv(signals_path, index_col=0, sep='\t')
+
+    # print(signals_normed.head(3), file=sys.stdout, flush=True)
+    # return
+
+    # Optional annotations
+    genes = None
+    if gtf_file_path:
+        genes = clh.dnaci.DNACipher.load_intersecting_annots(signals_normed, gtf_file_path)
+        if verbose:
+            print(f"Loaded {len(genes)} genes from {gtf_file_path}", file=sys.stdout, flush=True)
+
+    cres = None
+    if encode_cres_path:
+        cres = clh.dnaci.DNACipher.load_intersecting_annots(signals_normed, encode_cres_path, gtf=False)
+        if verbose:
+            print(f"Loaded {len(cres)} cCREs from {encode_cres_path}", file=sys.stdout, flush=True)
+
+    # Variant information
+    variant_loc = None
+    if variant_chr and variant_pos and variant_ref and variant_alt:
+        variant_loc = (variant_chr, variant_pos, variant_ref, variant_alt)
+
+    # Call plotting function
+    dnapl.plot_signals(
+        signals_normed,
+        variant_loc=variant_loc,
+        plot_delta=plot_delta,
+        title=title,
+        genes=genes,
+        regions=cres,
+        xlabel="Genomic position",
+        xtick_freq=xtick_freq,
+        show=False
+    )
+
+    out_path = f"{out_prefix}signals_plot.png"
+    clh.dealWithPlot(True, False, True, '', out_path, 300)
+
+    if verbose:
+        print(f"Wrote {out_path}", file=sys.stdout, flush=True)
+
+@app.command()
 def plot_variant_stats(
         out_prefix: Annotated[str, typer.Argument(help="Prefix for output files.")],
         stratified_gwas_stats_path: Annotated[str, typer.Argument(help="Path to stratified GWAS statistics file.")],
