@@ -236,8 +236,8 @@ effect_end="31119976"
 echo "prostate gland" > celltypes.txt
 echo "plus strand polyA plus RNA-seq,,minus strand polyA plus RNA-seq" > assays.txt
 
-# Scores the effects for the varaint in the inputted contexts, with scoring referring to the SUM(ALT-REF) at the indicated positions
-dnacipher infer-effects ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} ${out_prefix} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end}
+# Scores the effects for the variant in the inputted contexts, with scoring referring to the SUM(ALT-REF) at the indicated positions
+dnacipher infer-effects ${out_prefix} ${chr_} ${pos} ${ref} ${alt} celltypes.txt assays.txt ${fasta_path} -i ${index_base} -s ${seq_pos} -ers ${effect_start} -ere ${effect_end}
 ```
 
 ```bash
