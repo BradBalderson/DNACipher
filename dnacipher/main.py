@@ -418,7 +418,7 @@ def impact_map(
                                                                         )
 
     out_paths = [selected_gwas_stats_path.replace('.txt', '.impact_calls.txt'), f"{out_prefix}_sig_effects.txt",
-                 f"{out_prefix}fold_changes.txt"]+[f"{out_prefix}_boot_pvals.txt", f"{out_prefix}_boot_counts.txt"]
+                 f"{out_prefix}_fold_changes.txt"]+[f"{out_prefix}_boot_pvals.txt", f"{out_prefix}_boot_counts.txt"]
     out_dfs = [selected_gwas_stats, sig_effects, foldchange_effects, boot_pvals_df, boot_counts_df]
     for out_path, dataframe in zip(out_paths, out_dfs):
 
@@ -489,7 +489,7 @@ def plot_signals(
         show=False
     )
 
-    out_path = f"{out_prefix}signals_plot.png"
+    out_path = f"{out_prefix}_signals_plot.png"
     clh.dealWithPlot(True, False, True, '', out_path, 300)
 
     if verbose:
@@ -562,7 +562,7 @@ def plot_variant_stats(
         var_chrom_col=chrom_col, var_loc_col=var_loc_col,
     )
 
-    out_path = f"{out_prefix}{locus}{y_axis_col}_{color_by}_variant_stats.png"
+    out_path = f"{out_prefix}_{locus}{y_axis_col}_{color_by}_variant_stats.png"
     clh.dealWithPlot(True, False, True, '', out_path, 300)
 
     if verbose:

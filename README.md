@@ -580,7 +580,7 @@ dnacipher infer-multivariant-effects ${out_prefix} ${runx3_stats_dvim} t1d_runx3
 </details>
 
 <details>
-<summary><strong>2.3.4 Calculating variant-effect p-values</strong></summary>
+<summary><strong>2.3.4 Calculating variant-effect p-values and calling significant variant effects</strong></summary>
 
 ```bash
 dnacipher impact-map --help
@@ -615,7 +615,7 @@ Very fast due to Numba just-in-time (JIT) C-compilation (~0.1min for 10,000 boot
 ```bash
 runx3_effects=${out_prefix}_var_context_effects.txt.gz
 
-dnacipher impact-map ${out_prefix} ${runx3_stats_dvim} ${runx3_effects} 
+dnacipher impact-map ${out_prefix} ${runx3_stats_dvim} ${runx3_effects} -nb 1000000 -c 1
 ``` 
 
 The output files include {out_prefix}_boot_pvals.txt and {out_prefix}_boot_counts.txt. Former is the p-values of 
@@ -628,54 +628,6 @@ the predicted molecular effect significance. Output looks like this:
 Rows correspond to a variant, and the columns correspond to the context in format ***CELLTYPE---ASSAY***, and the values
 are the p-values for the inferred effect being significantly different from the background variants.
 
-</details>
-
-<details>
-<summary><strong>2.3.5 Calling significant variant effects</strong></summary>
-
-***Now we can call the 'impact' variants, setting our desired fold-change and p-value cutoff!***
-
-```bash
-dnacipher impact-map --help
-```  
-     Usage: dnacipher impact-map [OPTIONS] SELECTED_GWAS_STATS_PATH                                                                                          
-                                 PRED_EFFECTS_PATH BOOT_PVALS_PATH OUT_PREFIX                                                                                
-                                                                                                                                                             
-     Calls 'impact' variants - variants with significant predicted effects in particular cell types / assays compared with background variants.              
-                                                                                                                                                             
-    ╭─ Arguments ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ *    selected_gwas_stats_path      TEXT  Path to GWAS summary statistics for each of the variants at a GWAS locus, with a column 'var_labels'         │
-    │                                          indicating candidate, rare, and background variants. Each row is a variant.                                  │
-    │                                          [default: None]                                                                                              │
-    │                                          [required]                                                                                                   │
-    │ *    pred_effects_path             TEXT  Path to predicted effects for each variant. Each row is a variant, and each column is a predicted molecular  │
-    │                                          effect for that variant.                                                                                     │
-    │                                          [default: None]                                                                                              │
-    │                                          [required]                                                                                                   │
-    │ *    boot_pvals_path               TEXT  Path to predicted effects for each variant. Each row is a variant, and each column is a predicted molecular  │
-    │                                          effect for that variant.                                                                                     │
-    │                                          [default: None]                                                                                              │
-    │                                          [required]                                                                                                   │
-    │ *    out_prefix                    TEXT  Prefix for all outputs files. [default: None] [required]                                                     │
-    ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    ╭─ Options ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │         -pc,-p_cutoff             FLOAT  P-value below which a non-background variant predicted molecular effect is considered significantly          │
-    │                                          different to the background vars.                                                                            │
-    │                                          [default: 0.05]                                                                                              │
-    │         -fc,-fc_cutoff            FLOAT  Fold-change cutoff to be considered significant. [default: 0]                                                │
-    │         -verbose          -quiet         Enable or disable verbose output [default: verbose]                                                          │
-    │ --help                                   Show this message and exit.                                                                                  │
-    ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-
-Now for the RUNX3 example, inputting the original stats file, the predicted effects for each variant, and p-values.
-Run time ~10secs.
-
-```bash
-runx3_pvals=${out_prefix}boot_pvals.txt
-
-dnacipher impact-map ${runx3_stats} ${runx3_effects} ${runx3_pvals} ${out_prefix} -fc 2
-```  
-
 Most important output is {runx3_stats}.impact_calls.txt, which specifies which of the variants are 'impact' variants and
 the number of significant effects they have:
 
@@ -687,26 +639,30 @@ the number of significant effects they have:
 </details>
 
 <details>
-<summary><strong>2.3.6 Plotting the impact variant results</strong></summary>
+<summary><strong>2.3.5 Plotting the impact variant results</strong></summary>
 
 ******
 
 Can now-replot the variant stats, this time with the n_sig_effects to show the impact variants!
+We need to specify the column that has the chromosome information to enable plotting the gene annotations.
+
+By default, the below will plot the results for the first GWAS locus. To plot the results for others, specify the
+'-locus_index'.
 
 ```bash
-dnacipher plot-variant-stats -gtf gencode.v26.annotation.gtf -- ${out_prefix}selected_gwas_stats.reformatted.chr_named.impact_calls.txt n_sig_effects var_label ${out_prefix}
+dnacipher plot-variant-stats ${out_prefix} ${out_prefix}selected_gwas_stats.reformatted.chr_named.seq_pos.impact_calls.txt n_sig_effects var_label base_pair_location -gtf gencode.v26.annotation.gtf -chrom_col chromosome
 ```  
-<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_n_sig_effects_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="500">
+<img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx324970252n_sig_effects_var_label_variant_stats.png" alt="DVIM RUNX3 locus" width="500">
 
 Also volcano plots to assess the cutoffs used to call the impact variants:
 
 ```bash
-dnacipher plot-volcano candidate ${runx3_stats} ${out_prefix}sig_effects.txt ${out_prefix}fold_changes.txt ${runx3_pvals} ${out_prefix}
+dnacipher plot-volcano ${out_prefix} candidate ${runx3_stats} ${out_prefix}_sig_effects.txt ${out_prefix}_fold_changes.txt ${out_prefix}_boot_pvals.txt
 ```  
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_candidate_volcano.png" alt="DVIM RUNX3 locus" width="500">
 
 ```bash
-dnacipher plot-volcano rare ${runx3_stats} ${out_prefix}sig_effects.txt ${out_prefix}fold_changes.txt ${runx3_pvals} ${out_prefix}
+dnacipher plot-volcano ${out_prefix} rare ${runx3_stats} ${out_prefix}sig_effects.txt ${out_prefix}fold_changes.txt ${runx3_pvals} 
 ```  
 <img src="https://github.com/BradBalderson/DNACipher/blob/main/img/dvim_runx3_rare_volcano.png" alt="DVIM RUNX3 locus" width="500">
 
