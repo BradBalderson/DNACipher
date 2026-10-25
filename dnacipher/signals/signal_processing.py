@@ -202,20 +202,10 @@ def bwtool_signal_compute(test_name, genome_rois, data, region_pad, batch_size, 
 
                     dset[:, start_index:end_index] = epi_values_  # This only loads the slice we're writing to
 
-                    if batchi == 0:
-                        end = time.time()
-                        print(round(end - start, 3),
-                              f"seconds to load one batch of size {len(bigwig_files)} FIRST time.",
-                              file=log_file, flush=True)
-
-                    elif batchi == 1:
-                        end2 = time.time()
-                        print(round(end2 - end, 3),
-                              f"seconds to load one batch of size {len(bigwig_files)} SECOND time.",
-                              file=log_file, flush=True)
+                    elapsed_time = round((time.time() - start) / 60, 3)
 
                     if batchi % 2 == 0:  # Just keep an update..
-                        print(f"WRITTEN {end_index} out of {len(data)}.", file=log_file, flush=True)
+                        print(f"WRITTEN {end_index} out of {len(data)} in {elapsed_time}mins.", file=log_file, flush=True)
 
                     #finished[batchi] = [start_index, end_index, epi_values_]
 
