@@ -123,10 +123,13 @@ def apply_norm(
     signal_file: Annotated[str, typer.Argument(help='h5 file containing the matrix, that has the regions on the rows and the experiments on the columns, with values populated with the signal values.')],
     norm_file: Annotated[str, typer.Argument(help='.pkl file that was outputted from running dnacipher_train fit-norm.')],
     out_dir: Annotated[Optional[str], typer.Option("-o", "-out", help=("Output directory."))] = '',
+    n_split_plot: Annotated[Optional[int], typer.Option("-n", "-n_split_plot", help=("Number of batches of data to plot the non-zero signals for to check the normalisation."))] = 3,
+
 ):
     """ Applies a pre-fitted normalization to the inputted data.
     """
-    sn.apply_signal_normalization(run_name, genome_file, sample_file, signal_file, norm_file, out_dir)
+    sn.apply_signal_normalization(run_name, genome_file, sample_file, signal_file, norm_file, out_dir,
+                                  n_splits=n_split_plot)
 
 @app.command()
 def norm(
@@ -135,13 +138,15 @@ def norm(
     sample_file: Annotated[str, typer.Argument(help='Experiment metadata file, that specifies each of the experiments per row that need to be computed. A tab-separated metadata file, with atleast two columns; "File accession", "celltype_assay".')],
     signal_file: Annotated[str, typer.Argument(help='h5 file containing the matrix, that has the regions on the rows and the experiments on the columns, with values populated with the signal values.')],
     out_dir: Annotated[Optional[str], typer.Option("-o", "-out", help=("Output directory."))] = '',
+    n_split_plot: Annotated[Optional[int], typer.Option("-n", "-n_split_plot", help=("Number of batches of data to plot the non-zero signals for to the normalisation."))] = 3,
 ):
     """ Performs both the fitting and applying of the normalization.
     """
     sn.fit_signal_normalization(run_name, genome_file, sample_file, signal_file, out_dir)
 
     norm_file = out_dir + f'{run_name}_norm_stats.pkl'
-    sn.apply_signal_normalization(run_name, genome_file, sample_file, signal_file, norm_file, out_dir)
+    sn.apply_signal_normalization(run_name, genome_file, sample_file, signal_file, norm_file, out_dir,
+                                  n_splits=n_split_plot)
 
 @app.command()
 def train(

@@ -69,7 +69,7 @@ def fit_signal_normalization(run_name, genome_file, sample_file, signal_file, ou
 
     log_file.close()
 
-def apply_signal_normalization(run_name, genome_file, sample_file, signal_file, norm_file, out_dir):
+def apply_signal_normalization(run_name, genome_file, sample_file, signal_file, norm_file, out_dir, n_splits=3):
     """ Applies a pre-determined normalization to the data.
     """
 
@@ -121,14 +121,14 @@ def apply_signal_normalization(run_name, genome_file, sample_file, signal_file, 
     print(f"Visualising the normalisation effect on the data..", file=log_file, flush=True)
 
     ##### The original data...
-    signal_dataset.plot_assay_nonzeros(nsplits=3)
+    signal_dataset.plot_assay_nonzeros(nsplits=n_splits)
     data_manage.dealWithPlot(True, False, True, out_dir,
                      f'{run_name}_{precomp_prefix}_epimeasure_distribs.png', 300)
     print(f"Saved {run_name}_{precomp_prefix}_epimeasure_distribs.png", file=log_file, flush=True)
 
     ##### The normalized data:
     signal_norm_dataset = signal_dataset_classes.load_signal_data(genome_file, sample_file, transform_path)
-    signal_norm_dataset.plot_assay_nonzeros(nsplits=3)
+    signal_norm_dataset.plot_assay_nonzeros(nsplits=n_splits)
 
     data_manage.dealWithPlot(True, False, True, out_dir,
                      f'{run_name}_{precomp_prefix}_NORMED_epimeasure_distribs.png', 300)
