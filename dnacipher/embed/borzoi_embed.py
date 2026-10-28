@@ -46,7 +46,11 @@ class BorzoiEmbed(EmbeddingModel):
 
         #### Extracting the embeddings.
         with torch.no_grad():
-            _, embeddings = self.model(seq_tensors.to( self.model.device ), return_embeddings=True)
+            out = self.model(seq_tensors.to( self.model.device ), return_embeddings=True)
+            if type(out) == tuple and len(out) == 2: # different versions behave slightly differently, accounting for this.
+                _, embeddings = out
+            else:
+                embeddings = out
 
         #### Returning the embeddings.
         return embeddings.permute(0,2,1) # So is the expected seq, pos, embedding output.
