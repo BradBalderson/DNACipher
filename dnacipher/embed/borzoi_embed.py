@@ -19,7 +19,7 @@ class BorzoiEmbed(EmbeddingModel):
         """ Setups up the Borzoi model.
         """
         from borzoi_pytorch import Borzoi
-        model = Borzoi.from_pretrained('johahi/borzoi-replicate-0').to( device )
+        model = Borzoi.from_pretrained('johahi/borzoi-replicate-0').to( device=device )
         return model
 
     @staticmethod

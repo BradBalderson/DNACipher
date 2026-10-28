@@ -247,7 +247,6 @@ def infer_signals(
     celltypes: Annotated[str, typer.Argument(help="Celltypes to infer signals for. File in format: ct1,,ct2,...")],
     assays: Annotated[str, typer.Argument(help="Assays to infer signals for. File in format: assay1,,assay2,...")],
     fasta_file_path: Annotated[str, typer.Argument(help="FASTA file path for the reference genome. Must have .fai index.")],
-
     sample_file: Annotated[Optional[str], typer.Option("-sf", "-sample_file", help="Sample metadata used to train the model.")] = None,
     model_config_file: Annotated[Optional[str], typer.Option("-m", "-model_config", help="YAML file specifying model parameters.")] = None,
     weights_path: Annotated[Optional[str], typer.Option("-w", "-weights", help="Path to pretrained model weights (.pth).")] = None,

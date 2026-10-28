@@ -879,6 +879,36 @@ def test_reduce_resolution():
     plt.ylabel("Time in minutes")
     plt.show()
 
+def test_infer_signals2():
+    """Checking signal inference output..
+    """
+
+    out_dir = '/Users/bradbalderson/Desktop/projects/traitcipher_analysis/data/lncRNA/'
+    run_name = f"{out_dir}TEST_CAPTURE_SIGNALS"
+
+    fold = 0
+    bed_path = f"{out_dir}chr21_region_file.train_test.head.bed"
+    celltypes = f"{out_dir}target_celltype_dnac_queries.txt"
+    assays = f"{out_dir}capture_rna_dnac_queries.txt"
+    sample_file = f"{out_dir}encode_meta_encode_imputable_filter-fixed_train-test_samp-probs.CAPTURE.test=brain_1.tsv"
+
+    model_name = 'borzoi'
+
+    fasta_file_path = f"{out_dir}hg38.fa"
+
+    weights_path = f"{out_dir}CAPTURE_BRAIN1_model_weights.pth"
+    model_config_file = f"/Users/bradbalderson/Desktop/projects/myPython/DNACipher_Training/dnacipher_train/configs/softplusLR_model_config.yaml"
+
+    device = 'cpu'  # Won't work on mps:0, because....
+    batch_size = 3
+
+    from dnacipher.infer import run_signal_inference as si
+
+    si.infer_signals(run_name, bed_path, celltypes, assays, fasta_file_path,
+                     sample_file, model_config_file, weights_path, model_name, device, batch_size,
+                     True, True,
+                     )
+
 if __name__ == "__main__":
 
     ### Run different tests here.
@@ -902,5 +932,6 @@ if __name__ == "__main__":
     #test_infer_signals_attn()
     #test_multivar_inference_softplus() # Only issues seemed to be the fasta file, the loaded DNACipher model looked correct.
     #investigate_strand_reversal()
-    test_reduce_resolution()
+    #test_reduce_resolution()
+    test_infer_signals2()
 

@@ -884,8 +884,6 @@ class DNACipher():
                                         )
         return region_signals
 
-    # TODO for these methods, need to re-test for the API, currently have not done this after developing all the
-    #  pre-processing commandline code
     @staticmethod
     def normalise_and_order_effects(pred_effects,
                                     small_max_=0.6 # Below this value, will not scale the predictions, since they very small

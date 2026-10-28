@@ -78,6 +78,7 @@ export CPPFLAGS="-I$CONDA_PREFIX/include"
 export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
 
 pip install numba typer pyfaidx kipoiseq enformer-pytorch borzoi-pytorch==0.5.1 pybedtools
+pip install transformers==4.50.0
 
 git clone https://github.com/BradBalderson/DNACipher.git
 cd DNACipher
