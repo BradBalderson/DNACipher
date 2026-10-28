@@ -900,7 +900,7 @@ def test_infer_signals2():
     model_config_file = f"/Users/bradbalderson/Desktop/projects/myPython/DNACipher_Training/dnacipher_train/configs/softplusLR_model_config.yaml"
 
     device = 'cpu'  # Won't work on mps:0, because....
-    batch_size = 3
+    batch_size = 1_000
 
     from dnacipher.infer import run_signal_inference as si
 

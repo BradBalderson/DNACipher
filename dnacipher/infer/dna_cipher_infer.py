@@ -872,7 +872,8 @@ class DNACipher():
         dtype_maxlen = int(str(experiment_names.dtype).replace('<U', ''))
         experiment_names = experiment_names.astype(f"<U{int(dtype_maxlen*2)}")
         #imputed_celltype_assays_str = np.apply_along_axis(lambda x: '---'.join(x), 1, experiment_names)
-        imputed_celltype_assays_str = ['---'.join(experiment_name) for experiment_name in experiment_names]
+        imputed_celltype_assays_str = ['---'.join(experiment_name) for experiment_name in zip(experiment_names[0],
+                                                                                              experiment_names[1])]
 
         # Don't trusts numpy dtyping not to truncate..
         #region_names = np.apply_along_axis(lambda x: '_'.join(x.astype(str)), 1, bed_df.values[:, 0:4])
