@@ -902,7 +902,7 @@ class DNACipher():
         Returns
         --------
         pred_effects_ordered: pd.DataFrame
-            Same as pred_effects input, except the values are now normalised so they are more comparable across assays. The rows and columns are re-ordered to reflect the most effect assays and cell types.
+            Same as pred_effects input, except the values are now normalised so they are more comparable across assays. The columns are re-ordered to reflect the most effect assays and cell types.
         """
 
         maxs_ = pred_effects.values.max(axis=0)
@@ -917,10 +917,7 @@ class DNACipher():
         assays_mean_effects = np.abs(pred_effects.values).mean(axis=0)
         assays_order = np.argsort(-assays_mean_effects)
 
-        celltypes_mean_effects = np.abs(pred_effects.values[:, assays_order[0:5]]).mean(axis=1)
-        celltypes_order = np.argsort(-celltypes_mean_effects)
-
-        pred_effects_ordered = pred_effects_normed.iloc[:,assays_order].iloc[celltypes_order,:]
+        pred_effects_ordered = pred_effects_normed.iloc[:,assays_order]
 
         return pred_effects_ordered
 
