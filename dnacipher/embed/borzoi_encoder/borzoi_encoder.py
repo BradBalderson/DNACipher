@@ -138,7 +138,7 @@ class BorzoiEncoder( torch.nn.Module ):
     """ Linear model baseline.
     """
 
-    def __init__(self, input_seqlen=2068, load_weights=True, deep=True):
+    def __init__(self, input_seqlen=2048, load_weights=True, deep=True, device='cpu'):
         super(BorzoiEncoder, self).__init__()
 
         self.name = 'borzoi_encoder'
@@ -148,6 +148,7 @@ class BorzoiEncoder( torch.nn.Module ):
         # Controls what inputs the model will take, this actually get set during training, depending on the input the
         # model receives.
         self.deep = deep
+        self.device = device
 
         # This is the layer that we take from Borzoi !!!! NOTE they normally do a stride 2 max pooling, but I won't.
         self.conv_dna = ConvDna()

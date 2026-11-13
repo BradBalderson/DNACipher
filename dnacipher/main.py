@@ -53,7 +53,7 @@ def precompute_embeds(
     run_name: Annotated[str, typer.Argument(help="Name of the precompute signal run, used to prefix output files.")],
     genome_file: Annotated[str, typer.Argument(help="Tsv file specifying the genome locations for training, with atleast two columns CHR, START. All other columns ignored.")],
     fasta_file: Annotated[str, typer.Argument(help="Path to indexed .fasta file.")],
-    model_name: Annotated[str, typer.Argument(help='Name of the model to use for precomputing the embeddings.')],
+    model_name: Annotated[str, typer.Argument(help='Name of the model to use for precomputing the embeddings. Current suported is borzoi, enformer, or borzoi_2048.')],
     device: Annotated[str, typer.Argument(help='Name of the device to put the model on when computing the embeddings.')],
     batch_size: Annotated[Optional[int], typer.Option("-b", "-batch_size", help=("Number of regions to embeddings for at a time."))] = 56,
     region_pad: Annotated[Optional[int], typer.Option("-r", "-region_pad",

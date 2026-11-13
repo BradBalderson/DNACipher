@@ -34,6 +34,7 @@ def generate_embeddings(run_name, genome_file, fasta_file, query_embed_resolutio
 
     #### Loading the query regions.
     genome_rois = pd.read_csv(f'{genome_file}', sep='\t', header=None)
+    genome_rois[0] = genome_rois[0].astype(str) # accounts for case when the chrom is specified with integers.
 
     #### Creating the EmbeddingModel.
     if model_name not in md.model_names:

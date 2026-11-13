@@ -909,6 +909,21 @@ def test_infer_signals2():
                      True, True,
                      )
 
+def test_short_embeds():
+    """ Testing Borzoi 2048 bp model.
+    """
+
+    from .embed import run_embed_gen as reg
+
+    ### Testing with chrMT as input!
+    reg.generate_embeddings("TEST_short_embeds",
+                            f"/Users/bradbalderson/Desktop/projects/traitcipher_analysis/data/lncRNA/chr21_region_file.train_test.borzoi.renamed.head.tsv",
+                            f"/Users/bradbalderson/Desktop/projects/myPython/Sheriff/example_data/hg38.fa",
+                            16,
+                        "borzoi_2048", "cpu", 56,
+                            '/Users/bradbalderson/Desktop/projects/traitcipher_analysis/data/short_dnacipher/',
+                        )
+
 if __name__ == "__main__":
 
     ### Run different tests here.
@@ -933,5 +948,5 @@ if __name__ == "__main__":
     #test_multivar_inference_softplus() # Only issues seemed to be the fasta file, the loaded DNACipher model looked correct.
     #investigate_strand_reversal()
     #test_reduce_resolution()
-    test_infer_signals2()
-
+    #test_infer_signals2()
+    test_short_embeds()

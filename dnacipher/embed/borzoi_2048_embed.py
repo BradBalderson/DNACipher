@@ -2,9 +2,11 @@ from .embedding_model import EmbeddingModel
 
 import torch
 
-class BorzoiEmbed(EmbeddingModel):
+class BorzoiShortEmbed(EmbeddingModel):
 
-    """ Class that can generate sequence embeddings from Borzoi, which is child of EmbeddingModel.
+    """ Class that can generate short sequence embeddings from Borzoi, which is child of EmbeddingModel.
+        NOTE that the layer output from Borzoi for the sequence embedding is slightly different, (1536 instead of 1920),
+        since choose different output layer than the Borzoi pytorch repo do define the embeddings.
     """
 
     model_name = "borzoi_2048"
@@ -12,13 +14,13 @@ class BorzoiEmbed(EmbeddingModel):
     def __init__(self, device):
         """ Overrides the EmbeddingModel constructor, so don't need as much input!
         """
-        super().__init__(device, 2048, 2048, 32, 1920)
+        super().__init__(device, 2048, 2048, 32, 1536)
 
     def setup_model(self, device):
         """ Setups up the Borzoi model.
         """
-        from borzoi_pytorch import Borzoi
-        model = Borzoi.from_pretrained('johahi/borzoi-replicate-0').to( device=device )
+        from .borzoi_encoder.borzoi_encoder import BorzoiEncoder
+        model = BorzoiEncoder(input_seqlen=2048, load_weights=True, deep=True, device=device)
         return model
 
     @staticmethod
@@ -41,11 +43,11 @@ class BorzoiEmbed(EmbeddingModel):
         #### Converting the sequences to a tensor representation.
         # This location shows how to do the expected OHE correctly:
         # https://github.com/yangzhao1230/Enformer_Borzoi_Training_Pytorch/blob/main/dataloaders/npy_dataset.py
-        seq_tensors = torch.concat( [BorzoiEmbed.seq_encoder(seq_) for seq_ in sequences] )
+        seq_tensors = torch.concat( [BorzoiShortEmbed.seq_encoder(seq_) for seq_ in sequences] )
 
         #### Extracting the embeddings.
         with torch.no_grad():
-            out = self.model(seq_tensors.to( self.model.device ), return_embeddings=True)
+            out = self.model(seq_tensors.to( self.model.device ))
             if type(out) == tuple and len(out) == 2: # different versions behave slightly differently, accounting for this.
                 _, embeddings = out
             else:
