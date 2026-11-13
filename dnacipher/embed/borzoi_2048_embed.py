@@ -20,7 +20,7 @@ class BorzoiShortEmbed(EmbeddingModel):
         """ Setups up the Borzoi model.
         """
         from .borzoi_encoder.borzoi_encoder import BorzoiEncoder
-        model = BorzoiEncoder(input_seqlen=2048, load_weights=True, deep=True, device=device)
+        model = BorzoiEncoder(input_seqlen=2048, load_weights=True, deep=True, device=device).to( device )
         return model
 
     @staticmethod

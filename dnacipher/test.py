@@ -920,7 +920,7 @@ def test_short_embeds():
                             f"/Users/bradbalderson/Desktop/projects/traitcipher_analysis/data/lncRNA/chr21_region_file.train_test.borzoi.renamed.head.tsv",
                             f"/Users/bradbalderson/Desktop/projects/myPython/Sheriff/example_data/hg38.fa",
                             16,
-                        "borzoi_2048", "cpu", 56,
+                        "borzoi_2048", "mps:0", 56,
                             '/Users/bradbalderson/Desktop/projects/traitcipher_analysis/data/short_dnacipher/',
                         )
 
