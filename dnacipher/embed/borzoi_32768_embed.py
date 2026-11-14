@@ -1,0 +1,62 @@
+from .embedding_model import EmbeddingModel
+
+import torch
+
+class Borzoi32kEmbed(EmbeddingModel):
+
+    """ Class that can generate short sequence embeddings from Borzoi, which is child of EmbeddingModel.
+        NOTE that the layer output from Borzoi for the sequence embedding is slightly different, (1536 instead of 1920),
+        since choose different output layer than the Borzoi pytorch repo do define the embeddings.
+    """
+
+    model_name = "borzoi_32768"
+
+    def __init__(self, device):
+        """ Overrides the EmbeddingModel constructor, so don't need as much input!
+        """
+        super().__init__(device, 32768, 32768, 32, 1536)
+
+    def setup_model(self, device):
+        """ Setups up the Borzoi model.
+        """
+        from .borzoi_encoder.borzoi_encoder import BorzoiEncoder
+        model = BorzoiEncoder(input_seqlen=32768, load_weights=True, deep=True, device=device).to( device )
+        return model
+
+    @staticmethod
+    def seq_encoder( dna_str ):
+        dna_lkp = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
+
+        seq_ohe = torch.zeros((1, 4, len(dna_str)), dtype=torch.float32)
+        for i, s in enumerate(dna_str):
+            s_upper = s.upper()
+            if s_upper in dna_lkp: # Every other character put as a 0, particularly N content.
+
+                seq_ohe[0, dna_lkp[s_upper], i] = 1
+
+        return seq_ohe
+
+    def get_sequence_embeddings(self, sequences):
+        """ Return Borzoi embeddings of the inputted sequences.
+        """
+
+        #### Converting the sequences to a tensor representation.
+        # This location shows how to do the expected OHE correctly:
+        # https://github.com/yangzhao1230/Enformer_Borzoi_Training_Pytorch/blob/main/dataloaders/npy_dataset.py
+        seq_tensors = torch.concat( [Borzoi32kEmbed.seq_encoder(seq_) for seq_ in sequences] )
+
+        #### Extracting the embeddings.
+        with torch.no_grad():
+            out = self.model(seq_tensors.to( self.model.device ))
+            if type(out) == tuple and len(out) == 2: # different versions behave slightly differently, accounting for this.
+                _, embeddings = out
+            else:
+                embeddings = out
+
+        #### Returning the embeddings.
+        return embeddings.permute(0,2,1) # So is the expected seq, pos, embedding output.
+
+
+
+
+
